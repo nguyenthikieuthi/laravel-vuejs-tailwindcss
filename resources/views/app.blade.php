@@ -22,7 +22,10 @@
 <body>
     <div id="app">
         <app-header></app-header>
+        <div class="container mx-auto py-12">
         <router-view></router-view>
+        </div>
+        
     </div>  
 
     <script src="{{ asset('js/app.js') }}"></script>

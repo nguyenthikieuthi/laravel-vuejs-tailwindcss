@@ -5,6 +5,7 @@
             <a class="text-white p-3" href="#">予約一覧</a>
             <a class="text-white p-3" href="#">使い方</a>
             <a class="text-white p-3" href="#">問い合わせ</a>          
+            <router-link :to="{name: 'home'}" class="text-white p-3">Home</router-link>      
             <router-link :to="{name: 'category-list'}" class="text-white p-3">Product Category</router-link>      
         </div>
     

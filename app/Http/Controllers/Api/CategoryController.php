@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 use App\Http\Controllers\Controller;
 
@@ -37,7 +38,16 @@ class CategoryController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $this->validate($request, [
+            'name' => 'required',
+        ]);
+
+        $category = Category::created([
+            'name' => $request->name,
+            'slug' => Str::slug($request->name),
+        ]);
+
+        return response() ->json('success', 200);
     }
 
     /**
