@@ -17,7 +17,9 @@ class CategoryController extends Controller
      */
     public function index()
     {
-        //
+        $categories = Category::latest()->get();
+
+        return response()->json($categories, 200);
     }
 
     /**
@@ -42,7 +44,7 @@ class CategoryController extends Controller
             'name' => 'required',
         ]);
 
-        $category = Category::created([
+        $category = Category::create([
             'name' => $request->name,
             'slug' => Str::slug($request->name),
         ]);

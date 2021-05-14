@@ -7,7 +7,10 @@
         <form @submit.prevent="createCategory">
             <div class="flex items-center mb-4">
                 <div class="w-1/4">Category name</div>
-                <input v-model="categoryName" type="text" name="name" placeholder="category name" class="w-full border p-2">
+
+                <input v-model="categoryForm.name" type="text" name="name" placeholder="category name" class="w-full border p-2">                
+                <div v-if="categoryForm.errors.has('name')" v-html="categoryForm.errors.get('name')" class=""/>
+
             </div>
             <div class="float-right">
                 <button type="submit">Create Category</button>
@@ -17,18 +20,31 @@
 </template>
 
 <script>
+import axios from 'axios';
+import Form from 'vform'
+
 export default {
     data(){
         return {
-            categoryName: '',
+            categoryForm: new Form({
+            name: ''
+            }),
         }
     },
     methods: {
         createCategory(){
-            axios.post('/api/category', {name: this.categoryName}).then(respone => {
-                console.log(respone);
+
+            this.categoryForm.post('/api/category').then(({ data }) => {
+                this.categoryForm.name = '' ;
+
+                this.$toast.success({
+                title:'Succes!',
+                message:'Category created successfully.'
+                })
             })
+
         }
+
     }
 }
 </script>

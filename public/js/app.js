@@ -1,6 +1,1839 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ "./node_modules/axios/index.js":
+/*!*************************************!*\
+  !*** ./node_modules/axios/index.js ***!
+  \*************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+module.exports = __webpack_require__(/*! ./lib/axios */ "./node_modules/axios/lib/axios.js");
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/adapters/xhr.js":
+/*!************************************************!*\
+  !*** ./node_modules/axios/lib/adapters/xhr.js ***!
+  \************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./node_modules/axios/lib/utils.js");
+var settle = __webpack_require__(/*! ./../core/settle */ "./node_modules/axios/lib/core/settle.js");
+var cookies = __webpack_require__(/*! ./../helpers/cookies */ "./node_modules/axios/lib/helpers/cookies.js");
+var buildURL = __webpack_require__(/*! ./../helpers/buildURL */ "./node_modules/axios/lib/helpers/buildURL.js");
+var buildFullPath = __webpack_require__(/*! ../core/buildFullPath */ "./node_modules/axios/lib/core/buildFullPath.js");
+var parseHeaders = __webpack_require__(/*! ./../helpers/parseHeaders */ "./node_modules/axios/lib/helpers/parseHeaders.js");
+var isURLSameOrigin = __webpack_require__(/*! ./../helpers/isURLSameOrigin */ "./node_modules/axios/lib/helpers/isURLSameOrigin.js");
+var createError = __webpack_require__(/*! ../core/createError */ "./node_modules/axios/lib/core/createError.js");
+
+module.exports = function xhrAdapter(config) {
+  return new Promise(function dispatchXhrRequest(resolve, reject) {
+    var requestData = config.data;
+    var requestHeaders = config.headers;
+
+    if (utils.isFormData(requestData)) {
+      delete requestHeaders['Content-Type']; // Let the browser set it
+    }
+
+    var request = new XMLHttpRequest();
+
+    // HTTP basic authentication
+    if (config.auth) {
+      var username = config.auth.username || '';
+      var password = config.auth.password ? unescape(encodeURIComponent(config.auth.password)) : '';
+      requestHeaders.Authorization = 'Basic ' + btoa(username + ':' + password);
+    }
+
+    var fullPath = buildFullPath(config.baseURL, config.url);
+    request.open(config.method.toUpperCase(), buildURL(fullPath, config.params, config.paramsSerializer), true);
+
+    // Set the request timeout in MS
+    request.timeout = config.timeout;
+
+    // Listen for ready state
+    request.onreadystatechange = function handleLoad() {
+      if (!request || request.readyState !== 4) {
+        return;
+      }
+
+      // The request errored out and we didn't get a response, this will be
+      // handled by onerror instead
+      // With one exception: request that using file: protocol, most browsers
+      // will return status as 0 even though it's a successful request
+      if (request.status === 0 && !(request.responseURL && request.responseURL.indexOf('file:') === 0)) {
+        return;
+      }
+
+      // Prepare the response
+      var responseHeaders = 'getAllResponseHeaders' in request ? parseHeaders(request.getAllResponseHeaders()) : null;
+      var responseData = !config.responseType || config.responseType === 'text' ? request.responseText : request.response;
+      var response = {
+        data: responseData,
+        status: request.status,
+        statusText: request.statusText,
+        headers: responseHeaders,
+        config: config,
+        request: request
+      };
+
+      settle(resolve, reject, response);
+
+      // Clean up request
+      request = null;
+    };
+
+    // Handle browser request cancellation (as opposed to a manual cancellation)
+    request.onabort = function handleAbort() {
+      if (!request) {
+        return;
+      }
+
+      reject(createError('Request aborted', config, 'ECONNABORTED', request));
+
+      // Clean up request
+      request = null;
+    };
+
+    // Handle low level network errors
+    request.onerror = function handleError() {
+      // Real errors are hidden from us by the browser
+      // onerror should only fire if it's a network error
+      reject(createError('Network Error', config, null, request));
+
+      // Clean up request
+      request = null;
+    };
+
+    // Handle timeout
+    request.ontimeout = function handleTimeout() {
+      var timeoutErrorMessage = 'timeout of ' + config.timeout + 'ms exceeded';
+      if (config.timeoutErrorMessage) {
+        timeoutErrorMessage = config.timeoutErrorMessage;
+      }
+      reject(createError(timeoutErrorMessage, config, 'ECONNABORTED',
+        request));
+
+      // Clean up request
+      request = null;
+    };
+
+    // Add xsrf header
+    // This is only done if running in a standard browser environment.
+    // Specifically not if we're in a web worker, or react-native.
+    if (utils.isStandardBrowserEnv()) {
+      // Add xsrf header
+      var xsrfValue = (config.withCredentials || isURLSameOrigin(fullPath)) && config.xsrfCookieName ?
+        cookies.read(config.xsrfCookieName) :
+        undefined;
+
+      if (xsrfValue) {
+        requestHeaders[config.xsrfHeaderName] = xsrfValue;
+      }
+    }
+
+    // Add headers to the request
+    if ('setRequestHeader' in request) {
+      utils.forEach(requestHeaders, function setRequestHeader(val, key) {
+        if (typeof requestData === 'undefined' && key.toLowerCase() === 'content-type') {
+          // Remove Content-Type if data is undefined
+          delete requestHeaders[key];
+        } else {
+          // Otherwise add header to the request
+          request.setRequestHeader(key, val);
+        }
+      });
+    }
+
+    // Add withCredentials to request if needed
+    if (!utils.isUndefined(config.withCredentials)) {
+      request.withCredentials = !!config.withCredentials;
+    }
+
+    // Add responseType to request if needed
+    if (config.responseType) {
+      try {
+        request.responseType = config.responseType;
+      } catch (e) {
+        // Expected DOMException thrown by browsers not compatible XMLHttpRequest Level 2.
+        // But, this can be suppressed for 'json' type as it can be parsed by default 'transformResponse' function.
+        if (config.responseType !== 'json') {
+          throw e;
+        }
+      }
+    }
+
+    // Handle progress if needed
+    if (typeof config.onDownloadProgress === 'function') {
+      request.addEventListener('progress', config.onDownloadProgress);
+    }
+
+    // Not all browsers support upload events
+    if (typeof config.onUploadProgress === 'function' && request.upload) {
+      request.upload.addEventListener('progress', config.onUploadProgress);
+    }
+
+    if (config.cancelToken) {
+      // Handle cancellation
+      config.cancelToken.promise.then(function onCanceled(cancel) {
+        if (!request) {
+          return;
+        }
+
+        request.abort();
+        reject(cancel);
+        // Clean up request
+        request = null;
+      });
+    }
+
+    if (!requestData) {
+      requestData = null;
+    }
+
+    // Send the request
+    request.send(requestData);
+  });
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/axios.js":
+/*!*****************************************!*\
+  !*** ./node_modules/axios/lib/axios.js ***!
+  \*****************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./utils */ "./node_modules/axios/lib/utils.js");
+var bind = __webpack_require__(/*! ./helpers/bind */ "./node_modules/axios/lib/helpers/bind.js");
+var Axios = __webpack_require__(/*! ./core/Axios */ "./node_modules/axios/lib/core/Axios.js");
+var mergeConfig = __webpack_require__(/*! ./core/mergeConfig */ "./node_modules/axios/lib/core/mergeConfig.js");
+var defaults = __webpack_require__(/*! ./defaults */ "./node_modules/axios/lib/defaults.js");
+
+/**
+ * Create an instance of Axios
+ *
+ * @param {Object} defaultConfig The default config for the instance
+ * @return {Axios} A new instance of Axios
+ */
+function createInstance(defaultConfig) {
+  var context = new Axios(defaultConfig);
+  var instance = bind(Axios.prototype.request, context);
+
+  // Copy axios.prototype to instance
+  utils.extend(instance, Axios.prototype, context);
+
+  // Copy context to instance
+  utils.extend(instance, context);
+
+  return instance;
+}
+
+// Create the default instance to be exported
+var axios = createInstance(defaults);
+
+// Expose Axios class to allow class inheritance
+axios.Axios = Axios;
+
+// Factory for creating new instances
+axios.create = function create(instanceConfig) {
+  return createInstance(mergeConfig(axios.defaults, instanceConfig));
+};
+
+// Expose Cancel & CancelToken
+axios.Cancel = __webpack_require__(/*! ./cancel/Cancel */ "./node_modules/axios/lib/cancel/Cancel.js");
+axios.CancelToken = __webpack_require__(/*! ./cancel/CancelToken */ "./node_modules/axios/lib/cancel/CancelToken.js");
+axios.isCancel = __webpack_require__(/*! ./cancel/isCancel */ "./node_modules/axios/lib/cancel/isCancel.js");
+
+// Expose all/spread
+axios.all = function all(promises) {
+  return Promise.all(promises);
+};
+axios.spread = __webpack_require__(/*! ./helpers/spread */ "./node_modules/axios/lib/helpers/spread.js");
+
+// Expose isAxiosError
+axios.isAxiosError = __webpack_require__(/*! ./helpers/isAxiosError */ "./node_modules/axios/lib/helpers/isAxiosError.js");
+
+module.exports = axios;
+
+// Allow use of default import syntax in TypeScript
+module.exports.default = axios;
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/cancel/Cancel.js":
+/*!*************************************************!*\
+  !*** ./node_modules/axios/lib/cancel/Cancel.js ***!
+  \*************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+/**
+ * A `Cancel` is an object that is thrown when an operation is canceled.
+ *
+ * @class
+ * @param {string=} message The message.
+ */
+function Cancel(message) {
+  this.message = message;
+}
+
+Cancel.prototype.toString = function toString() {
+  return 'Cancel' + (this.message ? ': ' + this.message : '');
+};
+
+Cancel.prototype.__CANCEL__ = true;
+
+module.exports = Cancel;
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/cancel/CancelToken.js":
+/*!******************************************************!*\
+  !*** ./node_modules/axios/lib/cancel/CancelToken.js ***!
+  \******************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var Cancel = __webpack_require__(/*! ./Cancel */ "./node_modules/axios/lib/cancel/Cancel.js");
+
+/**
+ * A `CancelToken` is an object that can be used to request cancellation of an operation.
+ *
+ * @class
+ * @param {Function} executor The executor function.
+ */
+function CancelToken(executor) {
+  if (typeof executor !== 'function') {
+    throw new TypeError('executor must be a function.');
+  }
+
+  var resolvePromise;
+  this.promise = new Promise(function promiseExecutor(resolve) {
+    resolvePromise = resolve;
+  });
+
+  var token = this;
+  executor(function cancel(message) {
+    if (token.reason) {
+      // Cancellation has already been requested
+      return;
+    }
+
+    token.reason = new Cancel(message);
+    resolvePromise(token.reason);
+  });
+}
+
+/**
+ * Throws a `Cancel` if cancellation has been requested.
+ */
+CancelToken.prototype.throwIfRequested = function throwIfRequested() {
+  if (this.reason) {
+    throw this.reason;
+  }
+};
+
+/**
+ * Returns an object that contains a new `CancelToken` and a function that, when called,
+ * cancels the `CancelToken`.
+ */
+CancelToken.source = function source() {
+  var cancel;
+  var token = new CancelToken(function executor(c) {
+    cancel = c;
+  });
+  return {
+    token: token,
+    cancel: cancel
+  };
+};
+
+module.exports = CancelToken;
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/cancel/isCancel.js":
+/*!***************************************************!*\
+  !*** ./node_modules/axios/lib/cancel/isCancel.js ***!
+  \***************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+module.exports = function isCancel(value) {
+  return !!(value && value.__CANCEL__);
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/core/Axios.js":
+/*!**********************************************!*\
+  !*** ./node_modules/axios/lib/core/Axios.js ***!
+  \**********************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./node_modules/axios/lib/utils.js");
+var buildURL = __webpack_require__(/*! ../helpers/buildURL */ "./node_modules/axios/lib/helpers/buildURL.js");
+var InterceptorManager = __webpack_require__(/*! ./InterceptorManager */ "./node_modules/axios/lib/core/InterceptorManager.js");
+var dispatchRequest = __webpack_require__(/*! ./dispatchRequest */ "./node_modules/axios/lib/core/dispatchRequest.js");
+var mergeConfig = __webpack_require__(/*! ./mergeConfig */ "./node_modules/axios/lib/core/mergeConfig.js");
+
+/**
+ * Create a new instance of Axios
+ *
+ * @param {Object} instanceConfig The default config for the instance
+ */
+function Axios(instanceConfig) {
+  this.defaults = instanceConfig;
+  this.interceptors = {
+    request: new InterceptorManager(),
+    response: new InterceptorManager()
+  };
+}
+
+/**
+ * Dispatch a request
+ *
+ * @param {Object} config The config specific for this request (merged with this.defaults)
+ */
+Axios.prototype.request = function request(config) {
+  /*eslint no-param-reassign:0*/
+  // Allow for axios('example/url'[, config]) a la fetch API
+  if (typeof config === 'string') {
+    config = arguments[1] || {};
+    config.url = arguments[0];
+  } else {
+    config = config || {};
+  }
+
+  config = mergeConfig(this.defaults, config);
+
+  // Set config.method
+  if (config.method) {
+    config.method = config.method.toLowerCase();
+  } else if (this.defaults.method) {
+    config.method = this.defaults.method.toLowerCase();
+  } else {
+    config.method = 'get';
+  }
+
+  // Hook up interceptors middleware
+  var chain = [dispatchRequest, undefined];
+  var promise = Promise.resolve(config);
+
+  this.interceptors.request.forEach(function unshiftRequestInterceptors(interceptor) {
+    chain.unshift(interceptor.fulfilled, interceptor.rejected);
+  });
+
+  this.interceptors.response.forEach(function pushResponseInterceptors(interceptor) {
+    chain.push(interceptor.fulfilled, interceptor.rejected);
+  });
+
+  while (chain.length) {
+    promise = promise.then(chain.shift(), chain.shift());
+  }
+
+  return promise;
+};
+
+Axios.prototype.getUri = function getUri(config) {
+  config = mergeConfig(this.defaults, config);
+  return buildURL(config.url, config.params, config.paramsSerializer).replace(/^\?/, '');
+};
+
+// Provide aliases for supported request methods
+utils.forEach(['delete', 'get', 'head', 'options'], function forEachMethodNoData(method) {
+  /*eslint func-names:0*/
+  Axios.prototype[method] = function(url, config) {
+    return this.request(mergeConfig(config || {}, {
+      method: method,
+      url: url,
+      data: (config || {}).data
+    }));
+  };
+});
+
+utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
+  /*eslint func-names:0*/
+  Axios.prototype[method] = function(url, data, config) {
+    return this.request(mergeConfig(config || {}, {
+      method: method,
+      url: url,
+      data: data
+    }));
+  };
+});
+
+module.exports = Axios;
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/core/InterceptorManager.js":
+/*!***********************************************************!*\
+  !*** ./node_modules/axios/lib/core/InterceptorManager.js ***!
+  \***********************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./node_modules/axios/lib/utils.js");
+
+function InterceptorManager() {
+  this.handlers = [];
+}
+
+/**
+ * Add a new interceptor to the stack
+ *
+ * @param {Function} fulfilled The function to handle `then` for a `Promise`
+ * @param {Function} rejected The function to handle `reject` for a `Promise`
+ *
+ * @return {Number} An ID used to remove interceptor later
+ */
+InterceptorManager.prototype.use = function use(fulfilled, rejected) {
+  this.handlers.push({
+    fulfilled: fulfilled,
+    rejected: rejected
+  });
+  return this.handlers.length - 1;
+};
+
+/**
+ * Remove an interceptor from the stack
+ *
+ * @param {Number} id The ID that was returned by `use`
+ */
+InterceptorManager.prototype.eject = function eject(id) {
+  if (this.handlers[id]) {
+    this.handlers[id] = null;
+  }
+};
+
+/**
+ * Iterate over all the registered interceptors
+ *
+ * This method is particularly useful for skipping over any
+ * interceptors that may have become `null` calling `eject`.
+ *
+ * @param {Function} fn The function to call for each interceptor
+ */
+InterceptorManager.prototype.forEach = function forEach(fn) {
+  utils.forEach(this.handlers, function forEachHandler(h) {
+    if (h !== null) {
+      fn(h);
+    }
+  });
+};
+
+module.exports = InterceptorManager;
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/core/buildFullPath.js":
+/*!******************************************************!*\
+  !*** ./node_modules/axios/lib/core/buildFullPath.js ***!
+  \******************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var isAbsoluteURL = __webpack_require__(/*! ../helpers/isAbsoluteURL */ "./node_modules/axios/lib/helpers/isAbsoluteURL.js");
+var combineURLs = __webpack_require__(/*! ../helpers/combineURLs */ "./node_modules/axios/lib/helpers/combineURLs.js");
+
+/**
+ * Creates a new URL by combining the baseURL with the requestedURL,
+ * only when the requestedURL is not already an absolute URL.
+ * If the requestURL is absolute, this function returns the requestedURL untouched.
+ *
+ * @param {string} baseURL The base URL
+ * @param {string} requestedURL Absolute or relative URL to combine
+ * @returns {string} The combined full path
+ */
+module.exports = function buildFullPath(baseURL, requestedURL) {
+  if (baseURL && !isAbsoluteURL(requestedURL)) {
+    return combineURLs(baseURL, requestedURL);
+  }
+  return requestedURL;
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/core/createError.js":
+/*!****************************************************!*\
+  !*** ./node_modules/axios/lib/core/createError.js ***!
+  \****************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var enhanceError = __webpack_require__(/*! ./enhanceError */ "./node_modules/axios/lib/core/enhanceError.js");
+
+/**
+ * Create an Error with the specified message, config, error code, request and response.
+ *
+ * @param {string} message The error message.
+ * @param {Object} config The config.
+ * @param {string} [code] The error code (for example, 'ECONNABORTED').
+ * @param {Object} [request] The request.
+ * @param {Object} [response] The response.
+ * @returns {Error} The created error.
+ */
+module.exports = function createError(message, config, code, request, response) {
+  var error = new Error(message);
+  return enhanceError(error, config, code, request, response);
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/core/dispatchRequest.js":
+/*!********************************************************!*\
+  !*** ./node_modules/axios/lib/core/dispatchRequest.js ***!
+  \********************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./node_modules/axios/lib/utils.js");
+var transformData = __webpack_require__(/*! ./transformData */ "./node_modules/axios/lib/core/transformData.js");
+var isCancel = __webpack_require__(/*! ../cancel/isCancel */ "./node_modules/axios/lib/cancel/isCancel.js");
+var defaults = __webpack_require__(/*! ../defaults */ "./node_modules/axios/lib/defaults.js");
+
+/**
+ * Throws a `Cancel` if cancellation has been requested.
+ */
+function throwIfCancellationRequested(config) {
+  if (config.cancelToken) {
+    config.cancelToken.throwIfRequested();
+  }
+}
+
+/**
+ * Dispatch a request to the server using the configured adapter.
+ *
+ * @param {object} config The config that is to be used for the request
+ * @returns {Promise} The Promise to be fulfilled
+ */
+module.exports = function dispatchRequest(config) {
+  throwIfCancellationRequested(config);
+
+  // Ensure headers exist
+  config.headers = config.headers || {};
+
+  // Transform request data
+  config.data = transformData(
+    config.data,
+    config.headers,
+    config.transformRequest
+  );
+
+  // Flatten headers
+  config.headers = utils.merge(
+    config.headers.common || {},
+    config.headers[config.method] || {},
+    config.headers
+  );
+
+  utils.forEach(
+    ['delete', 'get', 'head', 'post', 'put', 'patch', 'common'],
+    function cleanHeaderConfig(method) {
+      delete config.headers[method];
+    }
+  );
+
+  var adapter = config.adapter || defaults.adapter;
+
+  return adapter(config).then(function onAdapterResolution(response) {
+    throwIfCancellationRequested(config);
+
+    // Transform response data
+    response.data = transformData(
+      response.data,
+      response.headers,
+      config.transformResponse
+    );
+
+    return response;
+  }, function onAdapterRejection(reason) {
+    if (!isCancel(reason)) {
+      throwIfCancellationRequested(config);
+
+      // Transform response data
+      if (reason && reason.response) {
+        reason.response.data = transformData(
+          reason.response.data,
+          reason.response.headers,
+          config.transformResponse
+        );
+      }
+    }
+
+    return Promise.reject(reason);
+  });
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/core/enhanceError.js":
+/*!*****************************************************!*\
+  !*** ./node_modules/axios/lib/core/enhanceError.js ***!
+  \*****************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+/**
+ * Update an Error with the specified config, error code, and response.
+ *
+ * @param {Error} error The error to update.
+ * @param {Object} config The config.
+ * @param {string} [code] The error code (for example, 'ECONNABORTED').
+ * @param {Object} [request] The request.
+ * @param {Object} [response] The response.
+ * @returns {Error} The error.
+ */
+module.exports = function enhanceError(error, config, code, request, response) {
+  error.config = config;
+  if (code) {
+    error.code = code;
+  }
+
+  error.request = request;
+  error.response = response;
+  error.isAxiosError = true;
+
+  error.toJSON = function toJSON() {
+    return {
+      // Standard
+      message: this.message,
+      name: this.name,
+      // Microsoft
+      description: this.description,
+      number: this.number,
+      // Mozilla
+      fileName: this.fileName,
+      lineNumber: this.lineNumber,
+      columnNumber: this.columnNumber,
+      stack: this.stack,
+      // Axios
+      config: this.config,
+      code: this.code
+    };
+  };
+  return error;
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/core/mergeConfig.js":
+/*!****************************************************!*\
+  !*** ./node_modules/axios/lib/core/mergeConfig.js ***!
+  \****************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ../utils */ "./node_modules/axios/lib/utils.js");
+
+/**
+ * Config-specific merge-function which creates a new config-object
+ * by merging two configuration objects together.
+ *
+ * @param {Object} config1
+ * @param {Object} config2
+ * @returns {Object} New object resulting from merging config2 to config1
+ */
+module.exports = function mergeConfig(config1, config2) {
+  // eslint-disable-next-line no-param-reassign
+  config2 = config2 || {};
+  var config = {};
+
+  var valueFromConfig2Keys = ['url', 'method', 'data'];
+  var mergeDeepPropertiesKeys = ['headers', 'auth', 'proxy', 'params'];
+  var defaultToConfig2Keys = [
+    'baseURL', 'transformRequest', 'transformResponse', 'paramsSerializer',
+    'timeout', 'timeoutMessage', 'withCredentials', 'adapter', 'responseType', 'xsrfCookieName',
+    'xsrfHeaderName', 'onUploadProgress', 'onDownloadProgress', 'decompress',
+    'maxContentLength', 'maxBodyLength', 'maxRedirects', 'transport', 'httpAgent',
+    'httpsAgent', 'cancelToken', 'socketPath', 'responseEncoding'
+  ];
+  var directMergeKeys = ['validateStatus'];
+
+  function getMergedValue(target, source) {
+    if (utils.isPlainObject(target) && utils.isPlainObject(source)) {
+      return utils.merge(target, source);
+    } else if (utils.isPlainObject(source)) {
+      return utils.merge({}, source);
+    } else if (utils.isArray(source)) {
+      return source.slice();
+    }
+    return source;
+  }
+
+  function mergeDeepProperties(prop) {
+    if (!utils.isUndefined(config2[prop])) {
+      config[prop] = getMergedValue(config1[prop], config2[prop]);
+    } else if (!utils.isUndefined(config1[prop])) {
+      config[prop] = getMergedValue(undefined, config1[prop]);
+    }
+  }
+
+  utils.forEach(valueFromConfig2Keys, function valueFromConfig2(prop) {
+    if (!utils.isUndefined(config2[prop])) {
+      config[prop] = getMergedValue(undefined, config2[prop]);
+    }
+  });
+
+  utils.forEach(mergeDeepPropertiesKeys, mergeDeepProperties);
+
+  utils.forEach(defaultToConfig2Keys, function defaultToConfig2(prop) {
+    if (!utils.isUndefined(config2[prop])) {
+      config[prop] = getMergedValue(undefined, config2[prop]);
+    } else if (!utils.isUndefined(config1[prop])) {
+      config[prop] = getMergedValue(undefined, config1[prop]);
+    }
+  });
+
+  utils.forEach(directMergeKeys, function merge(prop) {
+    if (prop in config2) {
+      config[prop] = getMergedValue(config1[prop], config2[prop]);
+    } else if (prop in config1) {
+      config[prop] = getMergedValue(undefined, config1[prop]);
+    }
+  });
+
+  var axiosKeys = valueFromConfig2Keys
+    .concat(mergeDeepPropertiesKeys)
+    .concat(defaultToConfig2Keys)
+    .concat(directMergeKeys);
+
+  var otherKeys = Object
+    .keys(config1)
+    .concat(Object.keys(config2))
+    .filter(function filterAxiosKeys(key) {
+      return axiosKeys.indexOf(key) === -1;
+    });
+
+  utils.forEach(otherKeys, mergeDeepProperties);
+
+  return config;
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/core/settle.js":
+/*!***********************************************!*\
+  !*** ./node_modules/axios/lib/core/settle.js ***!
+  \***********************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var createError = __webpack_require__(/*! ./createError */ "./node_modules/axios/lib/core/createError.js");
+
+/**
+ * Resolve or reject a Promise based on response status.
+ *
+ * @param {Function} resolve A function that resolves the promise.
+ * @param {Function} reject A function that rejects the promise.
+ * @param {object} response The response.
+ */
+module.exports = function settle(resolve, reject, response) {
+  var validateStatus = response.config.validateStatus;
+  if (!response.status || !validateStatus || validateStatus(response.status)) {
+    resolve(response);
+  } else {
+    reject(createError(
+      'Request failed with status code ' + response.status,
+      response.config,
+      null,
+      response.request,
+      response
+    ));
+  }
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/core/transformData.js":
+/*!******************************************************!*\
+  !*** ./node_modules/axios/lib/core/transformData.js ***!
+  \******************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./node_modules/axios/lib/utils.js");
+
+/**
+ * Transform the data for a request or a response
+ *
+ * @param {Object|String} data The data to be transformed
+ * @param {Array} headers The headers for the request or response
+ * @param {Array|Function} fns A single function or Array of functions
+ * @returns {*} The resulting transformed data
+ */
+module.exports = function transformData(data, headers, fns) {
+  /*eslint no-param-reassign:0*/
+  utils.forEach(fns, function transform(fn) {
+    data = fn(data, headers);
+  });
+
+  return data;
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/defaults.js":
+/*!********************************************!*\
+  !*** ./node_modules/axios/lib/defaults.js ***!
+  \********************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+/* provided dependency */ var process = __webpack_require__(/*! process/browser */ "./node_modules/process/browser.js");
+
+
+var utils = __webpack_require__(/*! ./utils */ "./node_modules/axios/lib/utils.js");
+var normalizeHeaderName = __webpack_require__(/*! ./helpers/normalizeHeaderName */ "./node_modules/axios/lib/helpers/normalizeHeaderName.js");
+
+var DEFAULT_CONTENT_TYPE = {
+  'Content-Type': 'application/x-www-form-urlencoded'
+};
+
+function setContentTypeIfUnset(headers, value) {
+  if (!utils.isUndefined(headers) && utils.isUndefined(headers['Content-Type'])) {
+    headers['Content-Type'] = value;
+  }
+}
+
+function getDefaultAdapter() {
+  var adapter;
+  if (typeof XMLHttpRequest !== 'undefined') {
+    // For browsers use XHR adapter
+    adapter = __webpack_require__(/*! ./adapters/xhr */ "./node_modules/axios/lib/adapters/xhr.js");
+  } else if (typeof process !== 'undefined' && Object.prototype.toString.call(process) === '[object process]') {
+    // For node use HTTP adapter
+    adapter = __webpack_require__(/*! ./adapters/http */ "./node_modules/axios/lib/adapters/xhr.js");
+  }
+  return adapter;
+}
+
+var defaults = {
+  adapter: getDefaultAdapter(),
+
+  transformRequest: [function transformRequest(data, headers) {
+    normalizeHeaderName(headers, 'Accept');
+    normalizeHeaderName(headers, 'Content-Type');
+    if (utils.isFormData(data) ||
+      utils.isArrayBuffer(data) ||
+      utils.isBuffer(data) ||
+      utils.isStream(data) ||
+      utils.isFile(data) ||
+      utils.isBlob(data)
+    ) {
+      return data;
+    }
+    if (utils.isArrayBufferView(data)) {
+      return data.buffer;
+    }
+    if (utils.isURLSearchParams(data)) {
+      setContentTypeIfUnset(headers, 'application/x-www-form-urlencoded;charset=utf-8');
+      return data.toString();
+    }
+    if (utils.isObject(data)) {
+      setContentTypeIfUnset(headers, 'application/json;charset=utf-8');
+      return JSON.stringify(data);
+    }
+    return data;
+  }],
+
+  transformResponse: [function transformResponse(data) {
+    /*eslint no-param-reassign:0*/
+    if (typeof data === 'string') {
+      try {
+        data = JSON.parse(data);
+      } catch (e) { /* Ignore */ }
+    }
+    return data;
+  }],
+
+  /**
+   * A timeout in milliseconds to abort a request. If set to 0 (default) a
+   * timeout is not created.
+   */
+  timeout: 0,
+
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
+
+  maxContentLength: -1,
+  maxBodyLength: -1,
+
+  validateStatus: function validateStatus(status) {
+    return status >= 200 && status < 300;
+  }
+};
+
+defaults.headers = {
+  common: {
+    'Accept': 'application/json, text/plain, */*'
+  }
+};
+
+utils.forEach(['delete', 'get', 'head'], function forEachMethodNoData(method) {
+  defaults.headers[method] = {};
+});
+
+utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
+  defaults.headers[method] = utils.merge(DEFAULT_CONTENT_TYPE);
+});
+
+module.exports = defaults;
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/helpers/bind.js":
+/*!************************************************!*\
+  !*** ./node_modules/axios/lib/helpers/bind.js ***!
+  \************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+module.exports = function bind(fn, thisArg) {
+  return function wrap() {
+    var args = new Array(arguments.length);
+    for (var i = 0; i < args.length; i++) {
+      args[i] = arguments[i];
+    }
+    return fn.apply(thisArg, args);
+  };
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/helpers/buildURL.js":
+/*!****************************************************!*\
+  !*** ./node_modules/axios/lib/helpers/buildURL.js ***!
+  \****************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./node_modules/axios/lib/utils.js");
+
+function encode(val) {
+  return encodeURIComponent(val).
+    replace(/%3A/gi, ':').
+    replace(/%24/g, '$').
+    replace(/%2C/gi, ',').
+    replace(/%20/g, '+').
+    replace(/%5B/gi, '[').
+    replace(/%5D/gi, ']');
+}
+
+/**
+ * Build a URL by appending params to the end
+ *
+ * @param {string} url The base of the url (e.g., http://www.google.com)
+ * @param {object} [params] The params to be appended
+ * @returns {string} The formatted url
+ */
+module.exports = function buildURL(url, params, paramsSerializer) {
+  /*eslint no-param-reassign:0*/
+  if (!params) {
+    return url;
+  }
+
+  var serializedParams;
+  if (paramsSerializer) {
+    serializedParams = paramsSerializer(params);
+  } else if (utils.isURLSearchParams(params)) {
+    serializedParams = params.toString();
+  } else {
+    var parts = [];
+
+    utils.forEach(params, function serialize(val, key) {
+      if (val === null || typeof val === 'undefined') {
+        return;
+      }
+
+      if (utils.isArray(val)) {
+        key = key + '[]';
+      } else {
+        val = [val];
+      }
+
+      utils.forEach(val, function parseValue(v) {
+        if (utils.isDate(v)) {
+          v = v.toISOString();
+        } else if (utils.isObject(v)) {
+          v = JSON.stringify(v);
+        }
+        parts.push(encode(key) + '=' + encode(v));
+      });
+    });
+
+    serializedParams = parts.join('&');
+  }
+
+  if (serializedParams) {
+    var hashmarkIndex = url.indexOf('#');
+    if (hashmarkIndex !== -1) {
+      url = url.slice(0, hashmarkIndex);
+    }
+
+    url += (url.indexOf('?') === -1 ? '?' : '&') + serializedParams;
+  }
+
+  return url;
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/helpers/combineURLs.js":
+/*!*******************************************************!*\
+  !*** ./node_modules/axios/lib/helpers/combineURLs.js ***!
+  \*******************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+/**
+ * Creates a new URL by combining the specified URLs
+ *
+ * @param {string} baseURL The base URL
+ * @param {string} relativeURL The relative URL
+ * @returns {string} The combined URL
+ */
+module.exports = function combineURLs(baseURL, relativeURL) {
+  return relativeURL
+    ? baseURL.replace(/\/+$/, '') + '/' + relativeURL.replace(/^\/+/, '')
+    : baseURL;
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/helpers/cookies.js":
+/*!***************************************************!*\
+  !*** ./node_modules/axios/lib/helpers/cookies.js ***!
+  \***************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./node_modules/axios/lib/utils.js");
+
+module.exports = (
+  utils.isStandardBrowserEnv() ?
+
+  // Standard browser envs support document.cookie
+    (function standardBrowserEnv() {
+      return {
+        write: function write(name, value, expires, path, domain, secure) {
+          var cookie = [];
+          cookie.push(name + '=' + encodeURIComponent(value));
+
+          if (utils.isNumber(expires)) {
+            cookie.push('expires=' + new Date(expires).toGMTString());
+          }
+
+          if (utils.isString(path)) {
+            cookie.push('path=' + path);
+          }
+
+          if (utils.isString(domain)) {
+            cookie.push('domain=' + domain);
+          }
+
+          if (secure === true) {
+            cookie.push('secure');
+          }
+
+          document.cookie = cookie.join('; ');
+        },
+
+        read: function read(name) {
+          var match = document.cookie.match(new RegExp('(^|;\\s*)(' + name + ')=([^;]*)'));
+          return (match ? decodeURIComponent(match[3]) : null);
+        },
+
+        remove: function remove(name) {
+          this.write(name, '', Date.now() - 86400000);
+        }
+      };
+    })() :
+
+  // Non standard browser env (web workers, react-native) lack needed support.
+    (function nonStandardBrowserEnv() {
+      return {
+        write: function write() {},
+        read: function read() { return null; },
+        remove: function remove() {}
+      };
+    })()
+);
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/helpers/isAbsoluteURL.js":
+/*!*********************************************************!*\
+  !*** ./node_modules/axios/lib/helpers/isAbsoluteURL.js ***!
+  \*********************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+/**
+ * Determines whether the specified URL is absolute
+ *
+ * @param {string} url The URL to test
+ * @returns {boolean} True if the specified URL is absolute, otherwise false
+ */
+module.exports = function isAbsoluteURL(url) {
+  // A URL is considered absolute if it begins with "<scheme>://" or "//" (protocol-relative URL).
+  // RFC 3986 defines scheme name as a sequence of characters beginning with a letter and followed
+  // by any combination of letters, digits, plus, period, or hyphen.
+  return /^([a-z][a-z\d\+\-\.]*:)?\/\//i.test(url);
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/helpers/isAxiosError.js":
+/*!********************************************************!*\
+  !*** ./node_modules/axios/lib/helpers/isAxiosError.js ***!
+  \********************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+/**
+ * Determines whether the payload is an error thrown by Axios
+ *
+ * @param {*} payload The value to test
+ * @returns {boolean} True if the payload is an error thrown by Axios, otherwise false
+ */
+module.exports = function isAxiosError(payload) {
+  return (typeof payload === 'object') && (payload.isAxiosError === true);
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/helpers/isURLSameOrigin.js":
+/*!***********************************************************!*\
+  !*** ./node_modules/axios/lib/helpers/isURLSameOrigin.js ***!
+  \***********************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./node_modules/axios/lib/utils.js");
+
+module.exports = (
+  utils.isStandardBrowserEnv() ?
+
+  // Standard browser envs have full support of the APIs needed to test
+  // whether the request URL is of the same origin as current location.
+    (function standardBrowserEnv() {
+      var msie = /(msie|trident)/i.test(navigator.userAgent);
+      var urlParsingNode = document.createElement('a');
+      var originURL;
+
+      /**
+    * Parse a URL to discover it's components
+    *
+    * @param {String} url The URL to be parsed
+    * @returns {Object}
+    */
+      function resolveURL(url) {
+        var href = url;
+
+        if (msie) {
+        // IE needs attribute set twice to normalize properties
+          urlParsingNode.setAttribute('href', href);
+          href = urlParsingNode.href;
+        }
+
+        urlParsingNode.setAttribute('href', href);
+
+        // urlParsingNode provides the UrlUtils interface - http://url.spec.whatwg.org/#urlutils
+        return {
+          href: urlParsingNode.href,
+          protocol: urlParsingNode.protocol ? urlParsingNode.protocol.replace(/:$/, '') : '',
+          host: urlParsingNode.host,
+          search: urlParsingNode.search ? urlParsingNode.search.replace(/^\?/, '') : '',
+          hash: urlParsingNode.hash ? urlParsingNode.hash.replace(/^#/, '') : '',
+          hostname: urlParsingNode.hostname,
+          port: urlParsingNode.port,
+          pathname: (urlParsingNode.pathname.charAt(0) === '/') ?
+            urlParsingNode.pathname :
+            '/' + urlParsingNode.pathname
+        };
+      }
+
+      originURL = resolveURL(window.location.href);
+
+      /**
+    * Determine if a URL shares the same origin as the current location
+    *
+    * @param {String} requestURL The URL to test
+    * @returns {boolean} True if URL shares the same origin, otherwise false
+    */
+      return function isURLSameOrigin(requestURL) {
+        var parsed = (utils.isString(requestURL)) ? resolveURL(requestURL) : requestURL;
+        return (parsed.protocol === originURL.protocol &&
+            parsed.host === originURL.host);
+      };
+    })() :
+
+  // Non standard browser envs (web workers, react-native) lack needed support.
+    (function nonStandardBrowserEnv() {
+      return function isURLSameOrigin() {
+        return true;
+      };
+    })()
+);
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/helpers/normalizeHeaderName.js":
+/*!***************************************************************!*\
+  !*** ./node_modules/axios/lib/helpers/normalizeHeaderName.js ***!
+  \***************************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ../utils */ "./node_modules/axios/lib/utils.js");
+
+module.exports = function normalizeHeaderName(headers, normalizedName) {
+  utils.forEach(headers, function processHeader(value, name) {
+    if (name !== normalizedName && name.toUpperCase() === normalizedName.toUpperCase()) {
+      headers[normalizedName] = value;
+      delete headers[name];
+    }
+  });
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/helpers/parseHeaders.js":
+/*!********************************************************!*\
+  !*** ./node_modules/axios/lib/helpers/parseHeaders.js ***!
+  \********************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var utils = __webpack_require__(/*! ./../utils */ "./node_modules/axios/lib/utils.js");
+
+// Headers whose duplicates are ignored by node
+// c.f. https://nodejs.org/api/http.html#http_message_headers
+var ignoreDuplicateOf = [
+  'age', 'authorization', 'content-length', 'content-type', 'etag',
+  'expires', 'from', 'host', 'if-modified-since', 'if-unmodified-since',
+  'last-modified', 'location', 'max-forwards', 'proxy-authorization',
+  'referer', 'retry-after', 'user-agent'
+];
+
+/**
+ * Parse headers into an object
+ *
+ * ```
+ * Date: Wed, 27 Aug 2014 08:58:49 GMT
+ * Content-Type: application/json
+ * Connection: keep-alive
+ * Transfer-Encoding: chunked
+ * ```
+ *
+ * @param {String} headers Headers needing to be parsed
+ * @returns {Object} Headers parsed into an object
+ */
+module.exports = function parseHeaders(headers) {
+  var parsed = {};
+  var key;
+  var val;
+  var i;
+
+  if (!headers) { return parsed; }
+
+  utils.forEach(headers.split('\n'), function parser(line) {
+    i = line.indexOf(':');
+    key = utils.trim(line.substr(0, i)).toLowerCase();
+    val = utils.trim(line.substr(i + 1));
+
+    if (key) {
+      if (parsed[key] && ignoreDuplicateOf.indexOf(key) >= 0) {
+        return;
+      }
+      if (key === 'set-cookie') {
+        parsed[key] = (parsed[key] ? parsed[key] : []).concat([val]);
+      } else {
+        parsed[key] = parsed[key] ? parsed[key] + ', ' + val : val;
+      }
+    }
+  });
+
+  return parsed;
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/helpers/spread.js":
+/*!**************************************************!*\
+  !*** ./node_modules/axios/lib/helpers/spread.js ***!
+  \**************************************************/
+/***/ ((module) => {
+
+"use strict";
+
+
+/**
+ * Syntactic sugar for invoking a function and expanding an array for arguments.
+ *
+ * Common use case would be to use `Function.prototype.apply`.
+ *
+ *  ```js
+ *  function f(x, y, z) {}
+ *  var args = [1, 2, 3];
+ *  f.apply(null, args);
+ *  ```
+ *
+ * With `spread` this example can be re-written.
+ *
+ *  ```js
+ *  spread(function(x, y, z) {})([1, 2, 3]);
+ *  ```
+ *
+ * @param {Function} callback
+ * @returns {Function}
+ */
+module.exports = function spread(callback) {
+  return function wrap(arr) {
+    return callback.apply(null, arr);
+  };
+};
+
+
+/***/ }),
+
+/***/ "./node_modules/axios/lib/utils.js":
+/*!*****************************************!*\
+  !*** ./node_modules/axios/lib/utils.js ***!
+  \*****************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var bind = __webpack_require__(/*! ./helpers/bind */ "./node_modules/axios/lib/helpers/bind.js");
+
+/*global toString:true*/
+
+// utils is a library of generic helper functions non-specific to axios
+
+var toString = Object.prototype.toString;
+
+/**
+ * Determine if a value is an Array
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is an Array, otherwise false
+ */
+function isArray(val) {
+  return toString.call(val) === '[object Array]';
+}
+
+/**
+ * Determine if a value is undefined
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if the value is undefined, otherwise false
+ */
+function isUndefined(val) {
+  return typeof val === 'undefined';
+}
+
+/**
+ * Determine if a value is a Buffer
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a Buffer, otherwise false
+ */
+function isBuffer(val) {
+  return val !== null && !isUndefined(val) && val.constructor !== null && !isUndefined(val.constructor)
+    && typeof val.constructor.isBuffer === 'function' && val.constructor.isBuffer(val);
+}
+
+/**
+ * Determine if a value is an ArrayBuffer
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is an ArrayBuffer, otherwise false
+ */
+function isArrayBuffer(val) {
+  return toString.call(val) === '[object ArrayBuffer]';
+}
+
+/**
+ * Determine if a value is a FormData
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is an FormData, otherwise false
+ */
+function isFormData(val) {
+  return (typeof FormData !== 'undefined') && (val instanceof FormData);
+}
+
+/**
+ * Determine if a value is a view on an ArrayBuffer
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a view on an ArrayBuffer, otherwise false
+ */
+function isArrayBufferView(val) {
+  var result;
+  if ((typeof ArrayBuffer !== 'undefined') && (ArrayBuffer.isView)) {
+    result = ArrayBuffer.isView(val);
+  } else {
+    result = (val) && (val.buffer) && (val.buffer instanceof ArrayBuffer);
+  }
+  return result;
+}
+
+/**
+ * Determine if a value is a String
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a String, otherwise false
+ */
+function isString(val) {
+  return typeof val === 'string';
+}
+
+/**
+ * Determine if a value is a Number
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a Number, otherwise false
+ */
+function isNumber(val) {
+  return typeof val === 'number';
+}
+
+/**
+ * Determine if a value is an Object
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is an Object, otherwise false
+ */
+function isObject(val) {
+  return val !== null && typeof val === 'object';
+}
+
+/**
+ * Determine if a value is a plain Object
+ *
+ * @param {Object} val The value to test
+ * @return {boolean} True if value is a plain Object, otherwise false
+ */
+function isPlainObject(val) {
+  if (toString.call(val) !== '[object Object]') {
+    return false;
+  }
+
+  var prototype = Object.getPrototypeOf(val);
+  return prototype === null || prototype === Object.prototype;
+}
+
+/**
+ * Determine if a value is a Date
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a Date, otherwise false
+ */
+function isDate(val) {
+  return toString.call(val) === '[object Date]';
+}
+
+/**
+ * Determine if a value is a File
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a File, otherwise false
+ */
+function isFile(val) {
+  return toString.call(val) === '[object File]';
+}
+
+/**
+ * Determine if a value is a Blob
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a Blob, otherwise false
+ */
+function isBlob(val) {
+  return toString.call(val) === '[object Blob]';
+}
+
+/**
+ * Determine if a value is a Function
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a Function, otherwise false
+ */
+function isFunction(val) {
+  return toString.call(val) === '[object Function]';
+}
+
+/**
+ * Determine if a value is a Stream
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a Stream, otherwise false
+ */
+function isStream(val) {
+  return isObject(val) && isFunction(val.pipe);
+}
+
+/**
+ * Determine if a value is a URLSearchParams object
+ *
+ * @param {Object} val The value to test
+ * @returns {boolean} True if value is a URLSearchParams object, otherwise false
+ */
+function isURLSearchParams(val) {
+  return typeof URLSearchParams !== 'undefined' && val instanceof URLSearchParams;
+}
+
+/**
+ * Trim excess whitespace off the beginning and end of a string
+ *
+ * @param {String} str The String to trim
+ * @returns {String} The String freed of excess whitespace
+ */
+function trim(str) {
+  return str.replace(/^\s*/, '').replace(/\s*$/, '');
+}
+
+/**
+ * Determine if we're running in a standard browser environment
+ *
+ * This allows axios to run in a web worker, and react-native.
+ * Both environments support XMLHttpRequest, but not fully standard globals.
+ *
+ * web workers:
+ *  typeof window -> undefined
+ *  typeof document -> undefined
+ *
+ * react-native:
+ *  navigator.product -> 'ReactNative'
+ * nativescript
+ *  navigator.product -> 'NativeScript' or 'NS'
+ */
+function isStandardBrowserEnv() {
+  if (typeof navigator !== 'undefined' && (navigator.product === 'ReactNative' ||
+                                           navigator.product === 'NativeScript' ||
+                                           navigator.product === 'NS')) {
+    return false;
+  }
+  return (
+    typeof window !== 'undefined' &&
+    typeof document !== 'undefined'
+  );
+}
+
+/**
+ * Iterate over an Array or an Object invoking a function for each item.
+ *
+ * If `obj` is an Array callback will be called passing
+ * the value, index, and complete array for each item.
+ *
+ * If 'obj' is an Object callback will be called passing
+ * the value, key, and complete object for each property.
+ *
+ * @param {Object|Array} obj The object to iterate
+ * @param {Function} fn The callback to invoke for each item
+ */
+function forEach(obj, fn) {
+  // Don't bother if no value provided
+  if (obj === null || typeof obj === 'undefined') {
+    return;
+  }
+
+  // Force an array if not already something iterable
+  if (typeof obj !== 'object') {
+    /*eslint no-param-reassign:0*/
+    obj = [obj];
+  }
+
+  if (isArray(obj)) {
+    // Iterate over array values
+    for (var i = 0, l = obj.length; i < l; i++) {
+      fn.call(null, obj[i], i, obj);
+    }
+  } else {
+    // Iterate over object keys
+    for (var key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        fn.call(null, obj[key], key, obj);
+      }
+    }
+  }
+}
+
+/**
+ * Accepts varargs expecting each argument to be an object, then
+ * immutably merges the properties of each object and returns result.
+ *
+ * When multiple objects contain the same key the later object in
+ * the arguments list will take precedence.
+ *
+ * Example:
+ *
+ * ```js
+ * var result = merge({foo: 123}, {foo: 456});
+ * console.log(result.foo); // outputs 456
+ * ```
+ *
+ * @param {Object} obj1 Object to merge
+ * @returns {Object} Result of all merge properties
+ */
+function merge(/* obj1, obj2, obj3, ... */) {
+  var result = {};
+  function assignValue(val, key) {
+    if (isPlainObject(result[key]) && isPlainObject(val)) {
+      result[key] = merge(result[key], val);
+    } else if (isPlainObject(val)) {
+      result[key] = merge({}, val);
+    } else if (isArray(val)) {
+      result[key] = val.slice();
+    } else {
+      result[key] = val;
+    }
+  }
+
+  for (var i = 0, l = arguments.length; i < l; i++) {
+    forEach(arguments[i], assignValue);
+  }
+  return result;
+}
+
+/**
+ * Extends object a by mutably adding to it the properties of object b.
+ *
+ * @param {Object} a The object to be extended
+ * @param {Object} b The object to copy properties from
+ * @param {Object} thisArg The object to bind function to
+ * @return {Object} The resulting value of object a
+ */
+function extend(a, b, thisArg) {
+  forEach(b, function assignValue(val, key) {
+    if (thisArg && typeof val === 'function') {
+      a[key] = bind(val, thisArg);
+    } else {
+      a[key] = val;
+    }
+  });
+  return a;
+}
+
+/**
+ * Remove byte order marker. This catches EF BB BF (the UTF-8 BOM)
+ *
+ * @param {string} content with BOM
+ * @return {string} content value without BOM
+ */
+function stripBOM(content) {
+  if (content.charCodeAt(0) === 0xFEFF) {
+    content = content.slice(1);
+  }
+  return content;
+}
+
+module.exports = {
+  isArray: isArray,
+  isArrayBuffer: isArrayBuffer,
+  isBuffer: isBuffer,
+  isFormData: isFormData,
+  isArrayBufferView: isArrayBufferView,
+  isString: isString,
+  isNumber: isNumber,
+  isObject: isObject,
+  isPlainObject: isPlainObject,
+  isUndefined: isUndefined,
+  isDate: isDate,
+  isFile: isFile,
+  isBlob: isBlob,
+  isFunction: isFunction,
+  isStream: isStream,
+  isURLSearchParams: isURLSearchParams,
+  isStandardBrowserEnv: isStandardBrowserEnv,
+  forEach: forEach,
+  merge: merge,
+  extend: extend,
+  trim: trim,
+  stripBOM: stripBOM
+};
+
+
+/***/ }),
+
 /***/ "./node_modules/babel-loader/lib/index.js??clonedRuleSet-5[0].rules[0].use[0]!./node_modules/vue-loader/lib/index.js??vue-loader-options!./resources/js/components/Header.vue?vue&type=script&lang=js&":
 /*!*************************************************************************************************************************************************************************************************************!*\
   !*** ./node_modules/babel-loader/lib/index.js??clonedRuleSet-5[0].rules[0].use[0]!./node_modules/vue-loader/lib/index.js??vue-loader-options!./resources/js/components/Header.vue?vue&type=script&lang=js& ***!
@@ -42,6 +1875,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
+/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! axios */ "./node_modules/axios/index.js");
+/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(axios__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var vform__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! vform */ "./node_modules/vform/dist/vform.es.js");
 //
 //
 //
@@ -60,18 +1896,31 @@ __webpack_require__.r(__webpack_exports__);
 //
 //
 //
+//
+//
+//
+
+
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
   data: function data() {
     return {
-      categoryName: ''
+      categoryForm: new vform__WEBPACK_IMPORTED_MODULE_1__.default({
+        name: ''
+      })
     };
   },
   methods: {
     createCategory: function createCategory() {
-      axios.post('/api/category', {
-        name: this.categoryName
-      }).then(function (respone) {
-        console.log(respone);
+      var _this = this;
+
+      this.categoryForm.post('/api/category').then(function (_ref) {
+        var data = _ref.data;
+        _this.categoryForm.name = '';
+
+        _this.$toast.success({
+          title: 'Succes!',
+          message: 'Category created successfully.'
+        });
       });
     }
   }
@@ -90,6 +1939,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
+/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! axios */ "./node_modules/axios/index.js");
+/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(axios__WEBPACK_IMPORTED_MODULE_0__);
 //
 //
 //
@@ -120,17 +1971,13 @@ __webpack_require__.r(__webpack_exports__);
 //
 //
 //
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
+
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
+  data: function data() {
+    return {
+      categories: []
+    };
+  },
   module: {
     rules: [// ... other rules omitted
     // this will apply to both plain `.scss` files
@@ -140,8 +1987,18 @@ __webpack_require__.r(__webpack_exports__);
       use: ['vue-style-loader', 'css-loader', 'sass-loader']
     }]
   },
+  methods: {
+    loadCategory: function loadCategory() {
+      var _this = this;
+
+      axios__WEBPACK_IMPORTED_MODULE_0___default().get('/api/category').then(function (response) {
+        _this.categories = response.data;
+      });
+    }
+  },
   mounted: function mounted() {
-    console.log('Component mounted.');
+    // console.log('Component mounted.')
+    this.loadCategory();
   }
 });
 
@@ -190,18 +2047,37 @@ __webpack_require__.r(__webpack_exports__);
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
-/* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.esm.js");
-/* harmony import */ var _router_index__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./router/index */ "./resources/js/router/index.js");
-/* harmony import */ var _css_app_css__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../css/app.css */ "./resources/css/app.css");
-/* harmony import */ var _css_app_css__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(_css_app_css__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.esm.js");
+/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! axios */ "./node_modules/axios/index.js");
+/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(axios__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _router_index__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./router/index */ "./resources/js/router/index.js");
+/* harmony import */ var _css_app_css__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../css/app.css */ "./resources/css/app.css");
+/* harmony import */ var _css_app_css__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(_css_app_css__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var cxlt_vue2_toastr__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! cxlt-vue2-toastr */ "./node_modules/cxlt-vue2-toastr/dist/js/cxlt-vue2-toastr.js");
+/* harmony import */ var cxlt_vue2_toastr__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(cxlt_vue2_toastr__WEBPACK_IMPORTED_MODULE_3__);
+/* harmony import */ var cxlt_vue2_toastr_dist_css_cxlt_vue2_toastr_css__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! cxlt-vue2-toastr/dist/css/cxlt-vue2-toastr.css */ "./node_modules/cxlt-vue2-toastr/dist/css/cxlt-vue2-toastr.css");
+/* harmony import */ var cxlt_vue2_toastr_dist_css_cxlt_vue2_toastr_css__WEBPACK_IMPORTED_MODULE_4___default = /*#__PURE__*/__webpack_require__.n(cxlt_vue2_toastr_dist_css_cxlt_vue2_toastr_css__WEBPACK_IMPORTED_MODULE_4__);
 
 
- // require('./bootstrap');
 
-vue__WEBPACK_IMPORTED_MODULE_2__.default.component('app-header', __webpack_require__(/*! ./components/Header.vue */ "./resources/js/components/Header.vue").default);
-var app = new vue__WEBPACK_IMPORTED_MODULE_2__.default({
+
+
+
+vue__WEBPACK_IMPORTED_MODULE_5__.default.use((cxlt_vue2_toastr__WEBPACK_IMPORTED_MODULE_3___default()));
+var toastrConfigs = {
+  position: 'top full right',
+  showDuration: 1000,
+  timeOut: 5000,
+  closeButton: true,
+  showMethod: 'fadeIn',
+  hideMethod: 'fadeOut'
+};
+vue__WEBPACK_IMPORTED_MODULE_5__.default.use((cxlt_vue2_toastr__WEBPACK_IMPORTED_MODULE_3___default()), toastrConfigs); // require('./bootstrap');
+
+vue__WEBPACK_IMPORTED_MODULE_5__.default.component('app-header', __webpack_require__(/*! ./components/Header.vue */ "./resources/js/components/Header.vue").default);
+var app = new vue__WEBPACK_IMPORTED_MODULE_5__.default({
   el: '#app',
-  router: _router_index__WEBPACK_IMPORTED_MODULE_0__.default
+  router: _router_index__WEBPACK_IMPORTED_MODULE_1__.default
 });
 
 /***/ }),
@@ -248,10 +2124,10 @@ var router = new vue_router__WEBPACK_IMPORTED_MODULE_1__.default({
 
 /***/ }),
 
-/***/ "./node_modules/css-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[1]!./node_modules/vue-loader/lib/loaders/stylePostLoader.js!./node_modules/postcss-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[2]!./node_modules/sass-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[3]!./node_modules/vue-loader/lib/index.js??vue-loader-options!./resources/js/pages/category/index.vue?vue&type=style&index=0&id=6d07bcac&lang=scss&scoped=true&":
-/*!*******************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** ./node_modules/css-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[1]!./node_modules/vue-loader/lib/loaders/stylePostLoader.js!./node_modules/postcss-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[2]!./node_modules/sass-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[3]!./node_modules/vue-loader/lib/index.js??vue-loader-options!./resources/js/pages/category/index.vue?vue&type=style&index=0&id=6d07bcac&lang=scss&scoped=true& ***!
-  \*******************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/***/ "./node_modules/css-loader/dist/cjs.js??clonedRuleSet-9[0].rules[0].use[1]!./node_modules/postcss-loader/dist/cjs.js??clonedRuleSet-9[0].rules[0].use[2]!./node_modules/cxlt-vue2-toastr/dist/css/cxlt-vue2-toastr.css":
+/*!*****************************************************************************************************************************************************************************************************************************!*\
+  !*** ./node_modules/css-loader/dist/cjs.js??clonedRuleSet-9[0].rules[0].use[1]!./node_modules/postcss-loader/dist/cjs.js??clonedRuleSet-9[0].rules[0].use[2]!./node_modules/cxlt-vue2-toastr/dist/css/cxlt-vue2-toastr.css ***!
+  \*****************************************************************************************************************************************************************************************************************************/
 /***/ ((module, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
@@ -259,13 +2135,13 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
-/* harmony import */ var _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../../node_modules/css-loader/dist/runtime/api.js */ "./node_modules/css-loader/dist/runtime/api.js");
-/* harmony import */ var _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../css-loader/dist/runtime/api.js */ "./node_modules/css-loader/dist/runtime/api.js");
+/* harmony import */ var _css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0__);
 // Imports
 
-var ___CSS_LOADER_EXPORT___ = _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0___default()(function(i){return i[1]});
+var ___CSS_LOADER_EXPORT___ = _css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_0___default()(function(i){return i[1]});
 // Module
-___CSS_LOADER_EXPORT___.push([module.id, ".btn[data-v-6d07bcac] {\n  width: 12vw;\n  height: 6vw;\n}", ""]);
+___CSS_LOADER_EXPORT___.push([module.id, ".toast-title{\n  font-weight:700\n}\n\n.toast-message{\n  -ms-word-wrap:break-word;\n  word-wrap:break-word\n}\n\n.toast-message a,.toast-message label{\n  color:#fff\n}\n\n.toast-message a:hover{\n  color:#ccc;\n  text-decoration:none\n}\n\n.toast-close-button{\n  position:relative;\n  right:-.3em;\n  top:-.3em;\n  float:right;\n  font-size:20px;\n  font-weight:700;\n  color:#fff;\n  -webkit-text-shadow:0 1px 0 #fff;\n  text-shadow:0 1px 0 #fff;\n  opacity:.8;\n  -ms-filter:progid:DXImageTransform.Microsoft.Alpha(Opacity=80);\n  filter:alpha(opacity=80)\n}\n\n.toast-close-button:focus,.toast-close-button:hover{\n  color:#000;\n  text-decoration:none;\n  cursor:pointer;\n  opacity:.4;\n  -ms-filter:progid:DXImageTransform.Microsoft.Alpha(Opacity=40);\n  filter:alpha(opacity=40)\n}\n\nbutton.toast-close-button{\n  padding:0;\n  cursor:pointer;\n  background:transparent;\n  border:0;\n  -webkit-appearance:none\n}\n\n.toast-icon{\n  position:absolute;\n  left:10px;\n  top:25px\n}\n\n.toast-icon,.toast-icon img{\n  width:30px;\n  height:30px\n}\n\n.toast-top-center{\n  top:0;\n  right:0;\n  width:100%\n}\n\n.toast-bottom-center{\n  bottom:0;\n  right:0;\n  width:100%\n}\n\n.toast-top-full-width{\n  top:0;\n  right:0;\n  width:100%\n}\n\n.toast-bottom-full-width{\n  bottom:0;\n  right:0;\n  width:100%\n}\n\n.toast-top-left{\n  top:12px;\n  left:12px\n}\n\n.toast-top-right{\n  top:12px;\n  right:12px\n}\n\n.toast-bottom-right{\n  right:12px;\n  bottom:12px\n}\n\n.toast-bottom-left{\n  bottom:12px;\n  left:12px\n}\n\n.cxlt-toastr-container{\n  position:fixed;\n  z-index:999999;\n  pointer-events:none\n}\n\n.cxlt-toastr-container *{\n  -webkit-box-sizing:border-box;\n          box-sizing:border-box\n}\n\n.cxlt-toastr-container>div{\n  position:relative;\n  pointer-events:auto;\n  overflow:hidden;\n  margin:0 0 6px;\n  padding:15px 15px 15px 50px;\n  width:300px;\n  border-radius:3px 3px 3px 3px;\n  background-position:15px;\n  background-repeat:no-repeat;\n  -webkit-box-shadow:0 0 12px #999;\n          box-shadow:0 0 12px #999;\n  color:#fff;\n  opacity:.8;\n  -ms-filter:progid:DXImageTransform.Microsoft.Alpha(Opacity=80);\n  filter:alpha(opacity=80)\n}\n\n.cxlt-toastr-container>:hover{\n  -webkit-box-shadow:0 0 12px #000;\n          box-shadow:0 0 12px #000;\n  opacity:1;\n  -ms-filter:progid:DXImageTransform.Microsoft.Alpha(Opacity=100);\n  filter:alpha(opacity=100);\n  cursor:pointer\n}\n\n.cxlt-toastr-container.toast-bottom-center>div,.cxlt-toastr-container.toast-top-center>div{\n  width:300px;\n  margin-left:auto;\n  margin-right:auto\n}\n\n.cxlt-toastr-container.toast-bottom-full-width>div,.cxlt-toastr-container.toast-top-full-width>div{\n  width:96%;\n  margin-left:auto;\n  margin-right:auto\n}\n\n.toast{\n  background-color:#030303\n}\n\n.toast-success{\n  background-color:#51a351\n}\n\n.toast-error{\n  background-color:#bd362f\n}\n\n.toast-info{\n  background-color:#2f96b4\n}\n\n.toast-warning{\n  background-color:#f89406\n}\n\n.toast-progress{\n  position:absolute;\n  left:0;\n  bottom:0;\n  height:4px;\n  background-color:#000;\n  opacity:.4;\n  -ms-filter:progid:DXImageTransform.Microsoft.Alpha(Opacity=40);\n  filter:alpha(opacity=40)\n}\n\n@media (max-width:240px){\n  .cxlt-toastr-container>div{\n    padding:8px 8px 8px 50px;\n    width:11em\n  }\n\n  .cxlt-toastr-container .toast-close-button{\n    right:-.2em;\n    top:-.2em\n  }\n}\n\n@media (min-width:241px) and (max-width:480px){\n  .cxlt-toastr-container>div{\n    padding:8px 8px 8px 50px;\n    width:18em\n  }\n\n  .cxlt-toastr-container .toast-close-button{\n    right:-.2em;\n    top:-.2em\n  }\n}\n\n@media (min-width:481px) and (max-width:768px){\n  .cxlt-toastr-container>div{\n    padding:15px 15px 15px 50px;\n    width:25em\n  }\n}\n\n/*!\n * animate.css -https://daneden.github.io/animate.css/\n * Version - 3.7.2\n * Licensed under the MIT license - http://opensource.org/licenses/MIT\n *\n * Copyright (c) 2019 Daniel Eden\n */\n\n@-webkit-keyframes bounce{\n  0%,20%,53%,80%,to{\n    -webkit-animation-timing-function:cubic-bezier(.215,.61,.355,1);\n            animation-timing-function:cubic-bezier(.215,.61,.355,1);\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n\n  40%,43%{\n    -webkit-animation-timing-function:cubic-bezier(.755,.05,.855,.06);\n            animation-timing-function:cubic-bezier(.755,.05,.855,.06);\n    -webkit-transform:translate3d(0,-30px,0);\n            transform:translate3d(0,-30px,0)\n  }\n\n  70%{\n    -webkit-animation-timing-function:cubic-bezier(.755,.05,.855,.06);\n            animation-timing-function:cubic-bezier(.755,.05,.855,.06);\n    -webkit-transform:translate3d(0,-15px,0);\n            transform:translate3d(0,-15px,0)\n  }\n\n  90%{\n    -webkit-transform:translate3d(0,-4px,0);\n            transform:translate3d(0,-4px,0)\n  }\n}\n\n@keyframes bounce{\n  0%,20%,53%,80%,to{\n    -webkit-animation-timing-function:cubic-bezier(.215,.61,.355,1);\n            animation-timing-function:cubic-bezier(.215,.61,.355,1);\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n\n  40%,43%{\n    -webkit-animation-timing-function:cubic-bezier(.755,.05,.855,.06);\n            animation-timing-function:cubic-bezier(.755,.05,.855,.06);\n    -webkit-transform:translate3d(0,-30px,0);\n            transform:translate3d(0,-30px,0)\n  }\n\n  70%{\n    -webkit-animation-timing-function:cubic-bezier(.755,.05,.855,.06);\n            animation-timing-function:cubic-bezier(.755,.05,.855,.06);\n    -webkit-transform:translate3d(0,-15px,0);\n            transform:translate3d(0,-15px,0)\n  }\n\n  90%{\n    -webkit-transform:translate3d(0,-4px,0);\n            transform:translate3d(0,-4px,0)\n  }\n}\n\n.bounce{\n  -webkit-animation-name:bounce;\n          animation-name:bounce;\n  -webkit-transform-origin:center bottom;\n          transform-origin:center bottom\n}\n\n@-webkit-keyframes flash{\n  0%,50%,to{\n    opacity:1\n  }\n\n  25%,75%{\n    opacity:0\n  }\n}\n\n@keyframes flash{\n  0%,50%,to{\n    opacity:1\n  }\n\n  25%,75%{\n    opacity:0\n  }\n}\n\n.flash{\n  -webkit-animation-name:flash;\n          animation-name:flash\n}\n\n@-webkit-keyframes pulse{\n  0%{\n    -webkit-transform:scaleX(1);\n            transform:scaleX(1)\n  }\n\n  50%{\n    -webkit-transform:scale3d(1.05,1.05,1.05);\n            transform:scale3d(1.05,1.05,1.05)\n  }\n\n  to{\n    -webkit-transform:scaleX(1);\n            transform:scaleX(1)\n  }\n}\n\n@keyframes pulse{\n  0%{\n    -webkit-transform:scaleX(1);\n            transform:scaleX(1)\n  }\n\n  50%{\n    -webkit-transform:scale3d(1.05,1.05,1.05);\n            transform:scale3d(1.05,1.05,1.05)\n  }\n\n  to{\n    -webkit-transform:scaleX(1);\n            transform:scaleX(1)\n  }\n}\n\n.pulse{\n  -webkit-animation-name:pulse;\n          animation-name:pulse\n}\n\n@-webkit-keyframes rubberBand{\n  0%{\n    -webkit-transform:scaleX(1);\n            transform:scaleX(1)\n  }\n\n  30%{\n    -webkit-transform:scale3d(1.25,.75,1);\n            transform:scale3d(1.25,.75,1)\n  }\n\n  40%{\n    -webkit-transform:scale3d(.75,1.25,1);\n            transform:scale3d(.75,1.25,1)\n  }\n\n  50%{\n    -webkit-transform:scale3d(1.15,.85,1);\n            transform:scale3d(1.15,.85,1)\n  }\n\n  65%{\n    -webkit-transform:scale3d(.95,1.05,1);\n            transform:scale3d(.95,1.05,1)\n  }\n\n  75%{\n    -webkit-transform:scale3d(1.05,.95,1);\n            transform:scale3d(1.05,.95,1)\n  }\n\n  to{\n    -webkit-transform:scaleX(1);\n            transform:scaleX(1)\n  }\n}\n\n@keyframes rubberBand{\n  0%{\n    -webkit-transform:scaleX(1);\n            transform:scaleX(1)\n  }\n\n  30%{\n    -webkit-transform:scale3d(1.25,.75,1);\n            transform:scale3d(1.25,.75,1)\n  }\n\n  40%{\n    -webkit-transform:scale3d(.75,1.25,1);\n            transform:scale3d(.75,1.25,1)\n  }\n\n  50%{\n    -webkit-transform:scale3d(1.15,.85,1);\n            transform:scale3d(1.15,.85,1)\n  }\n\n  65%{\n    -webkit-transform:scale3d(.95,1.05,1);\n            transform:scale3d(.95,1.05,1)\n  }\n\n  75%{\n    -webkit-transform:scale3d(1.05,.95,1);\n            transform:scale3d(1.05,.95,1)\n  }\n\n  to{\n    -webkit-transform:scaleX(1);\n            transform:scaleX(1)\n  }\n}\n\n.rubberBand{\n  -webkit-animation-name:rubberBand;\n          animation-name:rubberBand\n}\n\n@-webkit-keyframes shake{\n  0%,to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n\n  10%,30%,50%,70%,90%{\n    -webkit-transform:translate3d(-10px,0,0);\n            transform:translate3d(-10px,0,0)\n  }\n\n  20%,40%,60%,80%{\n    -webkit-transform:translate3d(10px,0,0);\n            transform:translate3d(10px,0,0)\n  }\n}\n\n@keyframes shake{\n  0%,to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n\n  10%,30%,50%,70%,90%{\n    -webkit-transform:translate3d(-10px,0,0);\n            transform:translate3d(-10px,0,0)\n  }\n\n  20%,40%,60%,80%{\n    -webkit-transform:translate3d(10px,0,0);\n            transform:translate3d(10px,0,0)\n  }\n}\n\n.shake{\n  -webkit-animation-name:shake;\n          animation-name:shake\n}\n\n@-webkit-keyframes headShake{\n  0%{\n    -webkit-transform:translateX(0);\n            transform:translateX(0)\n  }\n\n  6.5%{\n    -webkit-transform:translateX(-6px) rotateY(-9deg);\n            transform:translateX(-6px) rotateY(-9deg)\n  }\n\n  18.5%{\n    -webkit-transform:translateX(5px) rotateY(7deg);\n            transform:translateX(5px) rotateY(7deg)\n  }\n\n  31.5%{\n    -webkit-transform:translateX(-3px) rotateY(-5deg);\n            transform:translateX(-3px) rotateY(-5deg)\n  }\n\n  43.5%{\n    -webkit-transform:translateX(2px) rotateY(3deg);\n            transform:translateX(2px) rotateY(3deg)\n  }\n\n  50%{\n    -webkit-transform:translateX(0);\n            transform:translateX(0)\n  }\n}\n\n@keyframes headShake{\n  0%{\n    -webkit-transform:translateX(0);\n            transform:translateX(0)\n  }\n\n  6.5%{\n    -webkit-transform:translateX(-6px) rotateY(-9deg);\n            transform:translateX(-6px) rotateY(-9deg)\n  }\n\n  18.5%{\n    -webkit-transform:translateX(5px) rotateY(7deg);\n            transform:translateX(5px) rotateY(7deg)\n  }\n\n  31.5%{\n    -webkit-transform:translateX(-3px) rotateY(-5deg);\n            transform:translateX(-3px) rotateY(-5deg)\n  }\n\n  43.5%{\n    -webkit-transform:translateX(2px) rotateY(3deg);\n            transform:translateX(2px) rotateY(3deg)\n  }\n\n  50%{\n    -webkit-transform:translateX(0);\n            transform:translateX(0)\n  }\n}\n\n.headShake{\n  -webkit-animation-timing-function:ease-in-out;\n          animation-timing-function:ease-in-out;\n  -webkit-animation-name:headShake;\n          animation-name:headShake\n}\n\n@-webkit-keyframes swing{\n  20%{\n    -webkit-transform:rotate(15deg);\n            transform:rotate(15deg)\n  }\n\n  40%{\n    -webkit-transform:rotate(-10deg);\n            transform:rotate(-10deg)\n  }\n\n  60%{\n    -webkit-transform:rotate(5deg);\n            transform:rotate(5deg)\n  }\n\n  80%{\n    -webkit-transform:rotate(-5deg);\n            transform:rotate(-5deg)\n  }\n\n  to{\n    -webkit-transform:rotate(0deg);\n            transform:rotate(0deg)\n  }\n}\n\n@keyframes swing{\n  20%{\n    -webkit-transform:rotate(15deg);\n            transform:rotate(15deg)\n  }\n\n  40%{\n    -webkit-transform:rotate(-10deg);\n            transform:rotate(-10deg)\n  }\n\n  60%{\n    -webkit-transform:rotate(5deg);\n            transform:rotate(5deg)\n  }\n\n  80%{\n    -webkit-transform:rotate(-5deg);\n            transform:rotate(-5deg)\n  }\n\n  to{\n    -webkit-transform:rotate(0deg);\n            transform:rotate(0deg)\n  }\n}\n\n.swing{\n  -webkit-transform-origin:top center;\n          transform-origin:top center;\n  -webkit-animation-name:swing;\n          animation-name:swing\n}\n\n@-webkit-keyframes tada{\n  0%{\n    -webkit-transform:scaleX(1);\n            transform:scaleX(1)\n  }\n\n  10%,20%{\n    -webkit-transform:scale3d(.9,.9,.9) rotate(-3deg);\n            transform:scale3d(.9,.9,.9) rotate(-3deg)\n  }\n\n  30%,50%,70%,90%{\n    -webkit-transform:scale3d(1.1,1.1,1.1) rotate(3deg);\n            transform:scale3d(1.1,1.1,1.1) rotate(3deg)\n  }\n\n  40%,60%,80%{\n    -webkit-transform:scale3d(1.1,1.1,1.1) rotate(-3deg);\n            transform:scale3d(1.1,1.1,1.1) rotate(-3deg)\n  }\n\n  to{\n    -webkit-transform:scaleX(1);\n            transform:scaleX(1)\n  }\n}\n\n@keyframes tada{\n  0%{\n    -webkit-transform:scaleX(1);\n            transform:scaleX(1)\n  }\n\n  10%,20%{\n    -webkit-transform:scale3d(.9,.9,.9) rotate(-3deg);\n            transform:scale3d(.9,.9,.9) rotate(-3deg)\n  }\n\n  30%,50%,70%,90%{\n    -webkit-transform:scale3d(1.1,1.1,1.1) rotate(3deg);\n            transform:scale3d(1.1,1.1,1.1) rotate(3deg)\n  }\n\n  40%,60%,80%{\n    -webkit-transform:scale3d(1.1,1.1,1.1) rotate(-3deg);\n            transform:scale3d(1.1,1.1,1.1) rotate(-3deg)\n  }\n\n  to{\n    -webkit-transform:scaleX(1);\n            transform:scaleX(1)\n  }\n}\n\n.tada{\n  -webkit-animation-name:tada;\n          animation-name:tada\n}\n\n@-webkit-keyframes wobble{\n  0%{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n\n  15%{\n    -webkit-transform:translate3d(-25%,0,0) rotate(-5deg);\n            transform:translate3d(-25%,0,0) rotate(-5deg)\n  }\n\n  30%{\n    -webkit-transform:translate3d(20%,0,0) rotate(3deg);\n            transform:translate3d(20%,0,0) rotate(3deg)\n  }\n\n  45%{\n    -webkit-transform:translate3d(-15%,0,0) rotate(-3deg);\n            transform:translate3d(-15%,0,0) rotate(-3deg)\n  }\n\n  60%{\n    -webkit-transform:translate3d(10%,0,0) rotate(2deg);\n            transform:translate3d(10%,0,0) rotate(2deg)\n  }\n\n  75%{\n    -webkit-transform:translate3d(-5%,0,0) rotate(-1deg);\n            transform:translate3d(-5%,0,0) rotate(-1deg)\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes wobble{\n  0%{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n\n  15%{\n    -webkit-transform:translate3d(-25%,0,0) rotate(-5deg);\n            transform:translate3d(-25%,0,0) rotate(-5deg)\n  }\n\n  30%{\n    -webkit-transform:translate3d(20%,0,0) rotate(3deg);\n            transform:translate3d(20%,0,0) rotate(3deg)\n  }\n\n  45%{\n    -webkit-transform:translate3d(-15%,0,0) rotate(-3deg);\n            transform:translate3d(-15%,0,0) rotate(-3deg)\n  }\n\n  60%{\n    -webkit-transform:translate3d(10%,0,0) rotate(2deg);\n            transform:translate3d(10%,0,0) rotate(2deg)\n  }\n\n  75%{\n    -webkit-transform:translate3d(-5%,0,0) rotate(-1deg);\n            transform:translate3d(-5%,0,0) rotate(-1deg)\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.wobble{\n  -webkit-animation-name:wobble;\n          animation-name:wobble\n}\n\n@-webkit-keyframes jello{\n  0%,11.1%,to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n\n  22.2%{\n    -webkit-transform:skewX(-12.5deg) skewY(-12.5deg);\n            transform:skewX(-12.5deg) skewY(-12.5deg)\n  }\n\n  33.3%{\n    -webkit-transform:skewX(6.25deg) skewY(6.25deg);\n            transform:skewX(6.25deg) skewY(6.25deg)\n  }\n\n  44.4%{\n    -webkit-transform:skewX(-3.125deg) skewY(-3.125deg);\n            transform:skewX(-3.125deg) skewY(-3.125deg)\n  }\n\n  55.5%{\n    -webkit-transform:skewX(1.5625deg) skewY(1.5625deg);\n            transform:skewX(1.5625deg) skewY(1.5625deg)\n  }\n\n  66.6%{\n    -webkit-transform:skewX(-.78125deg) skewY(-.78125deg);\n            transform:skewX(-.78125deg) skewY(-.78125deg)\n  }\n\n  77.7%{\n    -webkit-transform:skewX(.390625deg) skewY(.390625deg);\n            transform:skewX(.390625deg) skewY(.390625deg)\n  }\n\n  88.8%{\n    -webkit-transform:skewX(-.1953125deg) skewY(-.1953125deg);\n            transform:skewX(-.1953125deg) skewY(-.1953125deg)\n  }\n}\n\n@keyframes jello{\n  0%,11.1%,to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n\n  22.2%{\n    -webkit-transform:skewX(-12.5deg) skewY(-12.5deg);\n            transform:skewX(-12.5deg) skewY(-12.5deg)\n  }\n\n  33.3%{\n    -webkit-transform:skewX(6.25deg) skewY(6.25deg);\n            transform:skewX(6.25deg) skewY(6.25deg)\n  }\n\n  44.4%{\n    -webkit-transform:skewX(-3.125deg) skewY(-3.125deg);\n            transform:skewX(-3.125deg) skewY(-3.125deg)\n  }\n\n  55.5%{\n    -webkit-transform:skewX(1.5625deg) skewY(1.5625deg);\n            transform:skewX(1.5625deg) skewY(1.5625deg)\n  }\n\n  66.6%{\n    -webkit-transform:skewX(-.78125deg) skewY(-.78125deg);\n            transform:skewX(-.78125deg) skewY(-.78125deg)\n  }\n\n  77.7%{\n    -webkit-transform:skewX(.390625deg) skewY(.390625deg);\n            transform:skewX(.390625deg) skewY(.390625deg)\n  }\n\n  88.8%{\n    -webkit-transform:skewX(-.1953125deg) skewY(-.1953125deg);\n            transform:skewX(-.1953125deg) skewY(-.1953125deg)\n  }\n}\n\n.jello{\n  -webkit-animation-name:jello;\n          animation-name:jello;\n  -webkit-transform-origin:center;\n          transform-origin:center\n}\n\n@-webkit-keyframes heartBeat{\n  0%{\n    -webkit-transform:scale(1);\n            transform:scale(1)\n  }\n\n  14%{\n    -webkit-transform:scale(1.3);\n            transform:scale(1.3)\n  }\n\n  28%{\n    -webkit-transform:scale(1);\n            transform:scale(1)\n  }\n\n  42%{\n    -webkit-transform:scale(1.3);\n            transform:scale(1.3)\n  }\n\n  70%{\n    -webkit-transform:scale(1);\n            transform:scale(1)\n  }\n}\n\n@keyframes heartBeat{\n  0%{\n    -webkit-transform:scale(1);\n            transform:scale(1)\n  }\n\n  14%{\n    -webkit-transform:scale(1.3);\n            transform:scale(1.3)\n  }\n\n  28%{\n    -webkit-transform:scale(1);\n            transform:scale(1)\n  }\n\n  42%{\n    -webkit-transform:scale(1.3);\n            transform:scale(1.3)\n  }\n\n  70%{\n    -webkit-transform:scale(1);\n            transform:scale(1)\n  }\n}\n\n.heartBeat{\n  -webkit-animation-name:heartBeat;\n          animation-name:heartBeat;\n  -webkit-animation-duration:1.3s;\n          animation-duration:1.3s;\n  -webkit-animation-timing-function:ease-in-out;\n          animation-timing-function:ease-in-out\n}\n\n@-webkit-keyframes bounceIn{\n  0%,20%,40%,60%,80%,to{\n    -webkit-animation-timing-function:cubic-bezier(.215,.61,.355,1);\n            animation-timing-function:cubic-bezier(.215,.61,.355,1)\n  }\n\n  0%{\n    opacity:0;\n    -webkit-transform:scale3d(.3,.3,.3);\n            transform:scale3d(.3,.3,.3)\n  }\n\n  20%{\n    -webkit-transform:scale3d(1.1,1.1,1.1);\n            transform:scale3d(1.1,1.1,1.1)\n  }\n\n  40%{\n    -webkit-transform:scale3d(.9,.9,.9);\n            transform:scale3d(.9,.9,.9)\n  }\n\n  60%{\n    opacity:1;\n    -webkit-transform:scale3d(1.03,1.03,1.03);\n            transform:scale3d(1.03,1.03,1.03)\n  }\n\n  80%{\n    -webkit-transform:scale3d(.97,.97,.97);\n            transform:scale3d(.97,.97,.97)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:scaleX(1);\n            transform:scaleX(1)\n  }\n}\n\n@keyframes bounceIn{\n  0%,20%,40%,60%,80%,to{\n    -webkit-animation-timing-function:cubic-bezier(.215,.61,.355,1);\n            animation-timing-function:cubic-bezier(.215,.61,.355,1)\n  }\n\n  0%{\n    opacity:0;\n    -webkit-transform:scale3d(.3,.3,.3);\n            transform:scale3d(.3,.3,.3)\n  }\n\n  20%{\n    -webkit-transform:scale3d(1.1,1.1,1.1);\n            transform:scale3d(1.1,1.1,1.1)\n  }\n\n  40%{\n    -webkit-transform:scale3d(.9,.9,.9);\n            transform:scale3d(.9,.9,.9)\n  }\n\n  60%{\n    opacity:1;\n    -webkit-transform:scale3d(1.03,1.03,1.03);\n            transform:scale3d(1.03,1.03,1.03)\n  }\n\n  80%{\n    -webkit-transform:scale3d(.97,.97,.97);\n            transform:scale3d(.97,.97,.97)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:scaleX(1);\n            transform:scaleX(1)\n  }\n}\n\n.bounceIn{\n  -webkit-animation-duration:.75s;\n          animation-duration:.75s;\n  -webkit-animation-name:bounceIn;\n          animation-name:bounceIn\n}\n\n@-webkit-keyframes bounceInDown{\n  0%,60%,75%,90%,to{\n    -webkit-animation-timing-function:cubic-bezier(.215,.61,.355,1);\n            animation-timing-function:cubic-bezier(.215,.61,.355,1)\n  }\n\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(0,-3000px,0);\n            transform:translate3d(0,-3000px,0)\n  }\n\n  60%{\n    opacity:1;\n    -webkit-transform:translate3d(0,25px,0);\n            transform:translate3d(0,25px,0)\n  }\n\n  75%{\n    -webkit-transform:translate3d(0,-10px,0);\n            transform:translate3d(0,-10px,0)\n  }\n\n  90%{\n    -webkit-transform:translate3d(0,5px,0);\n            transform:translate3d(0,5px,0)\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes bounceInDown{\n  0%,60%,75%,90%,to{\n    -webkit-animation-timing-function:cubic-bezier(.215,.61,.355,1);\n            animation-timing-function:cubic-bezier(.215,.61,.355,1)\n  }\n\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(0,-3000px,0);\n            transform:translate3d(0,-3000px,0)\n  }\n\n  60%{\n    opacity:1;\n    -webkit-transform:translate3d(0,25px,0);\n            transform:translate3d(0,25px,0)\n  }\n\n  75%{\n    -webkit-transform:translate3d(0,-10px,0);\n            transform:translate3d(0,-10px,0)\n  }\n\n  90%{\n    -webkit-transform:translate3d(0,5px,0);\n            transform:translate3d(0,5px,0)\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.bounceInDown{\n  -webkit-animation-name:bounceInDown;\n          animation-name:bounceInDown\n}\n\n@-webkit-keyframes bounceInLeft{\n  0%,60%,75%,90%,to{\n    -webkit-animation-timing-function:cubic-bezier(.215,.61,.355,1);\n            animation-timing-function:cubic-bezier(.215,.61,.355,1)\n  }\n\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(-3000px,0,0);\n            transform:translate3d(-3000px,0,0)\n  }\n\n  60%{\n    opacity:1;\n    -webkit-transform:translate3d(25px,0,0);\n            transform:translate3d(25px,0,0)\n  }\n\n  75%{\n    -webkit-transform:translate3d(-10px,0,0);\n            transform:translate3d(-10px,0,0)\n  }\n\n  90%{\n    -webkit-transform:translate3d(5px,0,0);\n            transform:translate3d(5px,0,0)\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes bounceInLeft{\n  0%,60%,75%,90%,to{\n    -webkit-animation-timing-function:cubic-bezier(.215,.61,.355,1);\n            animation-timing-function:cubic-bezier(.215,.61,.355,1)\n  }\n\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(-3000px,0,0);\n            transform:translate3d(-3000px,0,0)\n  }\n\n  60%{\n    opacity:1;\n    -webkit-transform:translate3d(25px,0,0);\n            transform:translate3d(25px,0,0)\n  }\n\n  75%{\n    -webkit-transform:translate3d(-10px,0,0);\n            transform:translate3d(-10px,0,0)\n  }\n\n  90%{\n    -webkit-transform:translate3d(5px,0,0);\n            transform:translate3d(5px,0,0)\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.bounceInLeft{\n  -webkit-animation-name:bounceInLeft;\n          animation-name:bounceInLeft\n}\n\n@-webkit-keyframes bounceInRight{\n  0%,60%,75%,90%,to{\n    -webkit-animation-timing-function:cubic-bezier(.215,.61,.355,1);\n            animation-timing-function:cubic-bezier(.215,.61,.355,1)\n  }\n\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(3000px,0,0);\n            transform:translate3d(3000px,0,0)\n  }\n\n  60%{\n    opacity:1;\n    -webkit-transform:translate3d(-25px,0,0);\n            transform:translate3d(-25px,0,0)\n  }\n\n  75%{\n    -webkit-transform:translate3d(10px,0,0);\n            transform:translate3d(10px,0,0)\n  }\n\n  90%{\n    -webkit-transform:translate3d(-5px,0,0);\n            transform:translate3d(-5px,0,0)\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes bounceInRight{\n  0%,60%,75%,90%,to{\n    -webkit-animation-timing-function:cubic-bezier(.215,.61,.355,1);\n            animation-timing-function:cubic-bezier(.215,.61,.355,1)\n  }\n\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(3000px,0,0);\n            transform:translate3d(3000px,0,0)\n  }\n\n  60%{\n    opacity:1;\n    -webkit-transform:translate3d(-25px,0,0);\n            transform:translate3d(-25px,0,0)\n  }\n\n  75%{\n    -webkit-transform:translate3d(10px,0,0);\n            transform:translate3d(10px,0,0)\n  }\n\n  90%{\n    -webkit-transform:translate3d(-5px,0,0);\n            transform:translate3d(-5px,0,0)\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.bounceInRight{\n  -webkit-animation-name:bounceInRight;\n          animation-name:bounceInRight\n}\n\n@-webkit-keyframes bounceInUp{\n  0%,60%,75%,90%,to{\n    -webkit-animation-timing-function:cubic-bezier(.215,.61,.355,1);\n            animation-timing-function:cubic-bezier(.215,.61,.355,1)\n  }\n\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(0,3000px,0);\n            transform:translate3d(0,3000px,0)\n  }\n\n  60%{\n    opacity:1;\n    -webkit-transform:translate3d(0,-20px,0);\n            transform:translate3d(0,-20px,0)\n  }\n\n  75%{\n    -webkit-transform:translate3d(0,10px,0);\n            transform:translate3d(0,10px,0)\n  }\n\n  90%{\n    -webkit-transform:translate3d(0,-5px,0);\n            transform:translate3d(0,-5px,0)\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes bounceInUp{\n  0%,60%,75%,90%,to{\n    -webkit-animation-timing-function:cubic-bezier(.215,.61,.355,1);\n            animation-timing-function:cubic-bezier(.215,.61,.355,1)\n  }\n\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(0,3000px,0);\n            transform:translate3d(0,3000px,0)\n  }\n\n  60%{\n    opacity:1;\n    -webkit-transform:translate3d(0,-20px,0);\n            transform:translate3d(0,-20px,0)\n  }\n\n  75%{\n    -webkit-transform:translate3d(0,10px,0);\n            transform:translate3d(0,10px,0)\n  }\n\n  90%{\n    -webkit-transform:translate3d(0,-5px,0);\n            transform:translate3d(0,-5px,0)\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.bounceInUp{\n  -webkit-animation-name:bounceInUp;\n          animation-name:bounceInUp\n}\n\n@-webkit-keyframes bounceOut{\n  20%{\n    -webkit-transform:scale3d(.9,.9,.9);\n            transform:scale3d(.9,.9,.9)\n  }\n\n  50%,55%{\n    opacity:1;\n    -webkit-transform:scale3d(1.1,1.1,1.1);\n            transform:scale3d(1.1,1.1,1.1)\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:scale3d(.3,.3,.3);\n            transform:scale3d(.3,.3,.3)\n  }\n}\n\n@keyframes bounceOut{\n  20%{\n    -webkit-transform:scale3d(.9,.9,.9);\n            transform:scale3d(.9,.9,.9)\n  }\n\n  50%,55%{\n    opacity:1;\n    -webkit-transform:scale3d(1.1,1.1,1.1);\n            transform:scale3d(1.1,1.1,1.1)\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:scale3d(.3,.3,.3);\n            transform:scale3d(.3,.3,.3)\n  }\n}\n\n.bounceOut{\n  -webkit-animation-duration:.75s;\n          animation-duration:.75s;\n  -webkit-animation-name:bounceOut;\n          animation-name:bounceOut\n}\n\n@-webkit-keyframes bounceOutDown{\n  20%{\n    -webkit-transform:translate3d(0,10px,0);\n            transform:translate3d(0,10px,0)\n  }\n\n  40%,45%{\n    opacity:1;\n    -webkit-transform:translate3d(0,-20px,0);\n            transform:translate3d(0,-20px,0)\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(0,2000px,0);\n            transform:translate3d(0,2000px,0)\n  }\n}\n\n@keyframes bounceOutDown{\n  20%{\n    -webkit-transform:translate3d(0,10px,0);\n            transform:translate3d(0,10px,0)\n  }\n\n  40%,45%{\n    opacity:1;\n    -webkit-transform:translate3d(0,-20px,0);\n            transform:translate3d(0,-20px,0)\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(0,2000px,0);\n            transform:translate3d(0,2000px,0)\n  }\n}\n\n.bounceOutDown{\n  -webkit-animation-name:bounceOutDown;\n          animation-name:bounceOutDown\n}\n\n@-webkit-keyframes bounceOutLeft{\n  20%{\n    opacity:1;\n    -webkit-transform:translate3d(20px,0,0);\n            transform:translate3d(20px,0,0)\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(-2000px,0,0);\n            transform:translate3d(-2000px,0,0)\n  }\n}\n\n@keyframes bounceOutLeft{\n  20%{\n    opacity:1;\n    -webkit-transform:translate3d(20px,0,0);\n            transform:translate3d(20px,0,0)\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(-2000px,0,0);\n            transform:translate3d(-2000px,0,0)\n  }\n}\n\n.bounceOutLeft{\n  -webkit-animation-name:bounceOutLeft;\n          animation-name:bounceOutLeft\n}\n\n@-webkit-keyframes bounceOutRight{\n  20%{\n    opacity:1;\n    -webkit-transform:translate3d(-20px,0,0);\n            transform:translate3d(-20px,0,0)\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(2000px,0,0);\n            transform:translate3d(2000px,0,0)\n  }\n}\n\n@keyframes bounceOutRight{\n  20%{\n    opacity:1;\n    -webkit-transform:translate3d(-20px,0,0);\n            transform:translate3d(-20px,0,0)\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(2000px,0,0);\n            transform:translate3d(2000px,0,0)\n  }\n}\n\n.bounceOutRight{\n  -webkit-animation-name:bounceOutRight;\n          animation-name:bounceOutRight\n}\n\n@-webkit-keyframes bounceOutUp{\n  20%{\n    -webkit-transform:translate3d(0,-10px,0);\n            transform:translate3d(0,-10px,0)\n  }\n\n  40%,45%{\n    opacity:1;\n    -webkit-transform:translate3d(0,20px,0);\n            transform:translate3d(0,20px,0)\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(0,-2000px,0);\n            transform:translate3d(0,-2000px,0)\n  }\n}\n\n@keyframes bounceOutUp{\n  20%{\n    -webkit-transform:translate3d(0,-10px,0);\n            transform:translate3d(0,-10px,0)\n  }\n\n  40%,45%{\n    opacity:1;\n    -webkit-transform:translate3d(0,20px,0);\n            transform:translate3d(0,20px,0)\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(0,-2000px,0);\n            transform:translate3d(0,-2000px,0)\n  }\n}\n\n.bounceOutUp{\n  -webkit-animation-name:bounceOutUp;\n          animation-name:bounceOutUp\n}\n\n@-webkit-keyframes fadeIn{\n  0%{\n    opacity:0\n  }\n\n  to{\n    opacity:1\n  }\n}\n\n@keyframes fadeIn{\n  0%{\n    opacity:0\n  }\n\n  to{\n    opacity:1\n  }\n}\n\n.fadeIn{\n  -webkit-animation-name:fadeIn;\n          animation-name:fadeIn\n}\n\n@-webkit-keyframes fadeInDown{\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(0,-100%,0);\n            transform:translate3d(0,-100%,0)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes fadeInDown{\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(0,-100%,0);\n            transform:translate3d(0,-100%,0)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.fadeInDown{\n  -webkit-animation-name:fadeInDown;\n          animation-name:fadeInDown\n}\n\n@-webkit-keyframes fadeInDownBig{\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(0,-2000px,0);\n            transform:translate3d(0,-2000px,0)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes fadeInDownBig{\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(0,-2000px,0);\n            transform:translate3d(0,-2000px,0)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.fadeInDownBig{\n  -webkit-animation-name:fadeInDownBig;\n          animation-name:fadeInDownBig\n}\n\n@-webkit-keyframes fadeInLeft{\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(-100%,0,0);\n            transform:translate3d(-100%,0,0)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes fadeInLeft{\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(-100%,0,0);\n            transform:translate3d(-100%,0,0)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.fadeInLeft{\n  -webkit-animation-name:fadeInLeft;\n          animation-name:fadeInLeft\n}\n\n@-webkit-keyframes fadeInLeftBig{\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(-2000px,0,0);\n            transform:translate3d(-2000px,0,0)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes fadeInLeftBig{\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(-2000px,0,0);\n            transform:translate3d(-2000px,0,0)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.fadeInLeftBig{\n  -webkit-animation-name:fadeInLeftBig;\n          animation-name:fadeInLeftBig\n}\n\n@-webkit-keyframes fadeInRight{\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(100%,0,0);\n            transform:translate3d(100%,0,0)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes fadeInRight{\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(100%,0,0);\n            transform:translate3d(100%,0,0)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.fadeInRight{\n  -webkit-animation-name:fadeInRight;\n          animation-name:fadeInRight\n}\n\n@-webkit-keyframes fadeInRightBig{\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(2000px,0,0);\n            transform:translate3d(2000px,0,0)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes fadeInRightBig{\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(2000px,0,0);\n            transform:translate3d(2000px,0,0)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.fadeInRightBig{\n  -webkit-animation-name:fadeInRightBig;\n          animation-name:fadeInRightBig\n}\n\n@-webkit-keyframes fadeInUp{\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(0,100%,0);\n            transform:translate3d(0,100%,0)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes fadeInUp{\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(0,100%,0);\n            transform:translate3d(0,100%,0)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.fadeInUp{\n  -webkit-animation-name:fadeInUp;\n          animation-name:fadeInUp\n}\n\n@-webkit-keyframes fadeInUpBig{\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(0,2000px,0);\n            transform:translate3d(0,2000px,0)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes fadeInUpBig{\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(0,2000px,0);\n            transform:translate3d(0,2000px,0)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.fadeInUpBig{\n  -webkit-animation-name:fadeInUpBig;\n          animation-name:fadeInUpBig\n}\n\n@-webkit-keyframes fadeOut{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0\n  }\n}\n\n@keyframes fadeOut{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0\n  }\n}\n\n.fadeOut{\n  -webkit-animation-name:fadeOut;\n          animation-name:fadeOut\n}\n\n@-webkit-keyframes fadeOutDown{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(0,100%,0);\n            transform:translate3d(0,100%,0)\n  }\n}\n\n@keyframes fadeOutDown{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(0,100%,0);\n            transform:translate3d(0,100%,0)\n  }\n}\n\n.fadeOutDown{\n  -webkit-animation-name:fadeOutDown;\n          animation-name:fadeOutDown\n}\n\n@-webkit-keyframes fadeOutDownBig{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(0,2000px,0);\n            transform:translate3d(0,2000px,0)\n  }\n}\n\n@keyframes fadeOutDownBig{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(0,2000px,0);\n            transform:translate3d(0,2000px,0)\n  }\n}\n\n.fadeOutDownBig{\n  -webkit-animation-name:fadeOutDownBig;\n          animation-name:fadeOutDownBig\n}\n\n@-webkit-keyframes fadeOutLeft{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(-100%,0,0);\n            transform:translate3d(-100%,0,0)\n  }\n}\n\n@keyframes fadeOutLeft{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(-100%,0,0);\n            transform:translate3d(-100%,0,0)\n  }\n}\n\n.fadeOutLeft{\n  -webkit-animation-name:fadeOutLeft;\n          animation-name:fadeOutLeft\n}\n\n@-webkit-keyframes fadeOutLeftBig{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(-2000px,0,0);\n            transform:translate3d(-2000px,0,0)\n  }\n}\n\n@keyframes fadeOutLeftBig{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(-2000px,0,0);\n            transform:translate3d(-2000px,0,0)\n  }\n}\n\n.fadeOutLeftBig{\n  -webkit-animation-name:fadeOutLeftBig;\n          animation-name:fadeOutLeftBig\n}\n\n@-webkit-keyframes fadeOutRight{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(100%,0,0);\n            transform:translate3d(100%,0,0)\n  }\n}\n\n@keyframes fadeOutRight{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(100%,0,0);\n            transform:translate3d(100%,0,0)\n  }\n}\n\n.fadeOutRight{\n  -webkit-animation-name:fadeOutRight;\n          animation-name:fadeOutRight\n}\n\n@-webkit-keyframes fadeOutRightBig{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(2000px,0,0);\n            transform:translate3d(2000px,0,0)\n  }\n}\n\n@keyframes fadeOutRightBig{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(2000px,0,0);\n            transform:translate3d(2000px,0,0)\n  }\n}\n\n.fadeOutRightBig{\n  -webkit-animation-name:fadeOutRightBig;\n          animation-name:fadeOutRightBig\n}\n\n@-webkit-keyframes fadeOutUp{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(0,-100%,0);\n            transform:translate3d(0,-100%,0)\n  }\n}\n\n@keyframes fadeOutUp{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(0,-100%,0);\n            transform:translate3d(0,-100%,0)\n  }\n}\n\n.fadeOutUp{\n  -webkit-animation-name:fadeOutUp;\n          animation-name:fadeOutUp\n}\n\n@-webkit-keyframes fadeOutUpBig{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(0,-2000px,0);\n            transform:translate3d(0,-2000px,0)\n  }\n}\n\n@keyframes fadeOutUpBig{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(0,-2000px,0);\n            transform:translate3d(0,-2000px,0)\n  }\n}\n\n.fadeOutUpBig{\n  -webkit-animation-name:fadeOutUpBig;\n          animation-name:fadeOutUpBig\n}\n\n@-webkit-keyframes flip{\n  0%{\n    -webkit-transform:perspective(400px) scaleX(1) translateZ(0) rotateY(-1turn);\n            transform:perspective(400px) scaleX(1) translateZ(0) rotateY(-1turn);\n    -webkit-animation-timing-function:ease-out;\n            animation-timing-function:ease-out\n  }\n\n  40%{\n    -webkit-transform:perspective(400px) scaleX(1) translateZ(150px) rotateY(-190deg);\n            transform:perspective(400px) scaleX(1) translateZ(150px) rotateY(-190deg);\n    -webkit-animation-timing-function:ease-out;\n            animation-timing-function:ease-out\n  }\n\n  50%{\n    -webkit-transform:perspective(400px) scaleX(1) translateZ(150px) rotateY(-170deg);\n            transform:perspective(400px) scaleX(1) translateZ(150px) rotateY(-170deg);\n    -webkit-animation-timing-function:ease-in;\n            animation-timing-function:ease-in\n  }\n\n  80%{\n    -webkit-transform:perspective(400px) scale3d(.95,.95,.95) translateZ(0) rotateY(0deg);\n            transform:perspective(400px) scale3d(.95,.95,.95) translateZ(0) rotateY(0deg);\n    -webkit-animation-timing-function:ease-in;\n            animation-timing-function:ease-in\n  }\n\n  to{\n    -webkit-transform:perspective(400px) scaleX(1) translateZ(0) rotateY(0deg);\n            transform:perspective(400px) scaleX(1) translateZ(0) rotateY(0deg);\n    -webkit-animation-timing-function:ease-in;\n            animation-timing-function:ease-in\n  }\n}\n\n@keyframes flip{\n  0%{\n    -webkit-transform:perspective(400px) scaleX(1) translateZ(0) rotateY(-1turn);\n            transform:perspective(400px) scaleX(1) translateZ(0) rotateY(-1turn);\n    -webkit-animation-timing-function:ease-out;\n            animation-timing-function:ease-out\n  }\n\n  40%{\n    -webkit-transform:perspective(400px) scaleX(1) translateZ(150px) rotateY(-190deg);\n            transform:perspective(400px) scaleX(1) translateZ(150px) rotateY(-190deg);\n    -webkit-animation-timing-function:ease-out;\n            animation-timing-function:ease-out\n  }\n\n  50%{\n    -webkit-transform:perspective(400px) scaleX(1) translateZ(150px) rotateY(-170deg);\n            transform:perspective(400px) scaleX(1) translateZ(150px) rotateY(-170deg);\n    -webkit-animation-timing-function:ease-in;\n            animation-timing-function:ease-in\n  }\n\n  80%{\n    -webkit-transform:perspective(400px) scale3d(.95,.95,.95) translateZ(0) rotateY(0deg);\n            transform:perspective(400px) scale3d(.95,.95,.95) translateZ(0) rotateY(0deg);\n    -webkit-animation-timing-function:ease-in;\n            animation-timing-function:ease-in\n  }\n\n  to{\n    -webkit-transform:perspective(400px) scaleX(1) translateZ(0) rotateY(0deg);\n            transform:perspective(400px) scaleX(1) translateZ(0) rotateY(0deg);\n    -webkit-animation-timing-function:ease-in;\n            animation-timing-function:ease-in\n  }\n}\n\n.animated.flip{\n  -webkit-backface-visibility:visible;\n  backface-visibility:visible;\n  -webkit-animation-name:flip;\n          animation-name:flip\n}\n\n@-webkit-keyframes flipInX{\n  0%{\n    -webkit-transform:perspective(400px) rotateX(90deg);\n            transform:perspective(400px) rotateX(90deg);\n    -webkit-animation-timing-function:ease-in;\n            animation-timing-function:ease-in;\n    opacity:0\n  }\n\n  40%{\n    -webkit-transform:perspective(400px) rotateX(-20deg);\n            transform:perspective(400px) rotateX(-20deg);\n    -webkit-animation-timing-function:ease-in;\n            animation-timing-function:ease-in\n  }\n\n  60%{\n    -webkit-transform:perspective(400px) rotateX(10deg);\n            transform:perspective(400px) rotateX(10deg);\n    opacity:1\n  }\n\n  80%{\n    -webkit-transform:perspective(400px) rotateX(-5deg);\n            transform:perspective(400px) rotateX(-5deg)\n  }\n\n  to{\n    -webkit-transform:perspective(400px);\n            transform:perspective(400px)\n  }\n}\n\n@keyframes flipInX{\n  0%{\n    -webkit-transform:perspective(400px) rotateX(90deg);\n            transform:perspective(400px) rotateX(90deg);\n    -webkit-animation-timing-function:ease-in;\n            animation-timing-function:ease-in;\n    opacity:0\n  }\n\n  40%{\n    -webkit-transform:perspective(400px) rotateX(-20deg);\n            transform:perspective(400px) rotateX(-20deg);\n    -webkit-animation-timing-function:ease-in;\n            animation-timing-function:ease-in\n  }\n\n  60%{\n    -webkit-transform:perspective(400px) rotateX(10deg);\n            transform:perspective(400px) rotateX(10deg);\n    opacity:1\n  }\n\n  80%{\n    -webkit-transform:perspective(400px) rotateX(-5deg);\n            transform:perspective(400px) rotateX(-5deg)\n  }\n\n  to{\n    -webkit-transform:perspective(400px);\n            transform:perspective(400px)\n  }\n}\n\n.flipInX{\n  -webkit-backface-visibility:visible!important;\n  backface-visibility:visible!important;\n  -webkit-animation-name:flipInX;\n          animation-name:flipInX\n}\n\n@-webkit-keyframes flipInY{\n  0%{\n    -webkit-transform:perspective(400px) rotateY(90deg);\n            transform:perspective(400px) rotateY(90deg);\n    -webkit-animation-timing-function:ease-in;\n            animation-timing-function:ease-in;\n    opacity:0\n  }\n\n  40%{\n    -webkit-transform:perspective(400px) rotateY(-20deg);\n            transform:perspective(400px) rotateY(-20deg);\n    -webkit-animation-timing-function:ease-in;\n            animation-timing-function:ease-in\n  }\n\n  60%{\n    -webkit-transform:perspective(400px) rotateY(10deg);\n            transform:perspective(400px) rotateY(10deg);\n    opacity:1\n  }\n\n  80%{\n    -webkit-transform:perspective(400px) rotateY(-5deg);\n            transform:perspective(400px) rotateY(-5deg)\n  }\n\n  to{\n    -webkit-transform:perspective(400px);\n            transform:perspective(400px)\n  }\n}\n\n@keyframes flipInY{\n  0%{\n    -webkit-transform:perspective(400px) rotateY(90deg);\n            transform:perspective(400px) rotateY(90deg);\n    -webkit-animation-timing-function:ease-in;\n            animation-timing-function:ease-in;\n    opacity:0\n  }\n\n  40%{\n    -webkit-transform:perspective(400px) rotateY(-20deg);\n            transform:perspective(400px) rotateY(-20deg);\n    -webkit-animation-timing-function:ease-in;\n            animation-timing-function:ease-in\n  }\n\n  60%{\n    -webkit-transform:perspective(400px) rotateY(10deg);\n            transform:perspective(400px) rotateY(10deg);\n    opacity:1\n  }\n\n  80%{\n    -webkit-transform:perspective(400px) rotateY(-5deg);\n            transform:perspective(400px) rotateY(-5deg)\n  }\n\n  to{\n    -webkit-transform:perspective(400px);\n            transform:perspective(400px)\n  }\n}\n\n.flipInY{\n  -webkit-backface-visibility:visible!important;\n  backface-visibility:visible!important;\n  -webkit-animation-name:flipInY;\n          animation-name:flipInY\n}\n\n@-webkit-keyframes flipOutX{\n  0%{\n    -webkit-transform:perspective(400px);\n            transform:perspective(400px)\n  }\n\n  30%{\n    -webkit-transform:perspective(400px) rotateX(-20deg);\n            transform:perspective(400px) rotateX(-20deg);\n    opacity:1\n  }\n\n  to{\n    -webkit-transform:perspective(400px) rotateX(90deg);\n            transform:perspective(400px) rotateX(90deg);\n    opacity:0\n  }\n}\n\n@keyframes flipOutX{\n  0%{\n    -webkit-transform:perspective(400px);\n            transform:perspective(400px)\n  }\n\n  30%{\n    -webkit-transform:perspective(400px) rotateX(-20deg);\n            transform:perspective(400px) rotateX(-20deg);\n    opacity:1\n  }\n\n  to{\n    -webkit-transform:perspective(400px) rotateX(90deg);\n            transform:perspective(400px) rotateX(90deg);\n    opacity:0\n  }\n}\n\n.flipOutX{\n  -webkit-animation-duration:.75s;\n          animation-duration:.75s;\n  -webkit-animation-name:flipOutX;\n          animation-name:flipOutX;\n  -webkit-backface-visibility:visible!important;\n  backface-visibility:visible!important\n}\n\n@-webkit-keyframes flipOutY{\n  0%{\n    -webkit-transform:perspective(400px);\n            transform:perspective(400px)\n  }\n\n  30%{\n    -webkit-transform:perspective(400px) rotateY(-15deg);\n            transform:perspective(400px) rotateY(-15deg);\n    opacity:1\n  }\n\n  to{\n    -webkit-transform:perspective(400px) rotateY(90deg);\n            transform:perspective(400px) rotateY(90deg);\n    opacity:0\n  }\n}\n\n@keyframes flipOutY{\n  0%{\n    -webkit-transform:perspective(400px);\n            transform:perspective(400px)\n  }\n\n  30%{\n    -webkit-transform:perspective(400px) rotateY(-15deg);\n            transform:perspective(400px) rotateY(-15deg);\n    opacity:1\n  }\n\n  to{\n    -webkit-transform:perspective(400px) rotateY(90deg);\n            transform:perspective(400px) rotateY(90deg);\n    opacity:0\n  }\n}\n\n.flipOutY{\n  -webkit-animation-duration:.75s;\n          animation-duration:.75s;\n  -webkit-backface-visibility:visible!important;\n  backface-visibility:visible!important;\n  -webkit-animation-name:flipOutY;\n          animation-name:flipOutY\n}\n\n@-webkit-keyframes lightSpeedIn{\n  0%{\n    -webkit-transform:translate3d(100%,0,0) skewX(-30deg);\n            transform:translate3d(100%,0,0) skewX(-30deg);\n    opacity:0\n  }\n\n  60%{\n    -webkit-transform:skewX(20deg);\n            transform:skewX(20deg);\n    opacity:1\n  }\n\n  80%{\n    -webkit-transform:skewX(-5deg);\n            transform:skewX(-5deg)\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes lightSpeedIn{\n  0%{\n    -webkit-transform:translate3d(100%,0,0) skewX(-30deg);\n            transform:translate3d(100%,0,0) skewX(-30deg);\n    opacity:0\n  }\n\n  60%{\n    -webkit-transform:skewX(20deg);\n            transform:skewX(20deg);\n    opacity:1\n  }\n\n  80%{\n    -webkit-transform:skewX(-5deg);\n            transform:skewX(-5deg)\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.lightSpeedIn{\n  -webkit-animation-name:lightSpeedIn;\n          animation-name:lightSpeedIn;\n  -webkit-animation-timing-function:ease-out;\n          animation-timing-function:ease-out\n}\n\n@-webkit-keyframes lightSpeedOut{\n  0%{\n    opacity:1\n  }\n\n  to{\n    -webkit-transform:translate3d(100%,0,0) skewX(30deg);\n            transform:translate3d(100%,0,0) skewX(30deg);\n    opacity:0\n  }\n}\n\n@keyframes lightSpeedOut{\n  0%{\n    opacity:1\n  }\n\n  to{\n    -webkit-transform:translate3d(100%,0,0) skewX(30deg);\n            transform:translate3d(100%,0,0) skewX(30deg);\n    opacity:0\n  }\n}\n\n.lightSpeedOut{\n  -webkit-animation-name:lightSpeedOut;\n          animation-name:lightSpeedOut;\n  -webkit-animation-timing-function:ease-in;\n          animation-timing-function:ease-in\n}\n\n@-webkit-keyframes rotateIn{\n  0%{\n    -webkit-transform-origin:center;\n            transform-origin:center;\n    -webkit-transform:rotate(-200deg);\n            transform:rotate(-200deg);\n    opacity:0\n  }\n\n  to{\n    -webkit-transform-origin:center;\n            transform-origin:center;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0);\n    opacity:1\n  }\n}\n\n@keyframes rotateIn{\n  0%{\n    -webkit-transform-origin:center;\n            transform-origin:center;\n    -webkit-transform:rotate(-200deg);\n            transform:rotate(-200deg);\n    opacity:0\n  }\n\n  to{\n    -webkit-transform-origin:center;\n            transform-origin:center;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0);\n    opacity:1\n  }\n}\n\n.rotateIn{\n  -webkit-animation-name:rotateIn;\n          animation-name:rotateIn\n}\n\n@-webkit-keyframes rotateInDownLeft{\n  0%{\n    -webkit-transform-origin:left bottom;\n            transform-origin:left bottom;\n    -webkit-transform:rotate(-45deg);\n            transform:rotate(-45deg);\n    opacity:0\n  }\n\n  to{\n    -webkit-transform-origin:left bottom;\n            transform-origin:left bottom;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0);\n    opacity:1\n  }\n}\n\n@keyframes rotateInDownLeft{\n  0%{\n    -webkit-transform-origin:left bottom;\n            transform-origin:left bottom;\n    -webkit-transform:rotate(-45deg);\n            transform:rotate(-45deg);\n    opacity:0\n  }\n\n  to{\n    -webkit-transform-origin:left bottom;\n            transform-origin:left bottom;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0);\n    opacity:1\n  }\n}\n\n.rotateInDownLeft{\n  -webkit-animation-name:rotateInDownLeft;\n          animation-name:rotateInDownLeft\n}\n\n@-webkit-keyframes rotateInDownRight{\n  0%{\n    -webkit-transform-origin:right bottom;\n            transform-origin:right bottom;\n    -webkit-transform:rotate(45deg);\n            transform:rotate(45deg);\n    opacity:0\n  }\n\n  to{\n    -webkit-transform-origin:right bottom;\n            transform-origin:right bottom;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0);\n    opacity:1\n  }\n}\n\n@keyframes rotateInDownRight{\n  0%{\n    -webkit-transform-origin:right bottom;\n            transform-origin:right bottom;\n    -webkit-transform:rotate(45deg);\n            transform:rotate(45deg);\n    opacity:0\n  }\n\n  to{\n    -webkit-transform-origin:right bottom;\n            transform-origin:right bottom;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0);\n    opacity:1\n  }\n}\n\n.rotateInDownRight{\n  -webkit-animation-name:rotateInDownRight;\n          animation-name:rotateInDownRight\n}\n\n@-webkit-keyframes rotateInUpLeft{\n  0%{\n    -webkit-transform-origin:left bottom;\n            transform-origin:left bottom;\n    -webkit-transform:rotate(45deg);\n            transform:rotate(45deg);\n    opacity:0\n  }\n\n  to{\n    -webkit-transform-origin:left bottom;\n            transform-origin:left bottom;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0);\n    opacity:1\n  }\n}\n\n@keyframes rotateInUpLeft{\n  0%{\n    -webkit-transform-origin:left bottom;\n            transform-origin:left bottom;\n    -webkit-transform:rotate(45deg);\n            transform:rotate(45deg);\n    opacity:0\n  }\n\n  to{\n    -webkit-transform-origin:left bottom;\n            transform-origin:left bottom;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0);\n    opacity:1\n  }\n}\n\n.rotateInUpLeft{\n  -webkit-animation-name:rotateInUpLeft;\n          animation-name:rotateInUpLeft\n}\n\n@-webkit-keyframes rotateInUpRight{\n  0%{\n    -webkit-transform-origin:right bottom;\n            transform-origin:right bottom;\n    -webkit-transform:rotate(-90deg);\n            transform:rotate(-90deg);\n    opacity:0\n  }\n\n  to{\n    -webkit-transform-origin:right bottom;\n            transform-origin:right bottom;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0);\n    opacity:1\n  }\n}\n\n@keyframes rotateInUpRight{\n  0%{\n    -webkit-transform-origin:right bottom;\n            transform-origin:right bottom;\n    -webkit-transform:rotate(-90deg);\n            transform:rotate(-90deg);\n    opacity:0\n  }\n\n  to{\n    -webkit-transform-origin:right bottom;\n            transform-origin:right bottom;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0);\n    opacity:1\n  }\n}\n\n.rotateInUpRight{\n  -webkit-animation-name:rotateInUpRight;\n          animation-name:rotateInUpRight\n}\n\n@-webkit-keyframes rotateOut{\n  0%{\n    -webkit-transform-origin:center;\n            transform-origin:center;\n    opacity:1\n  }\n\n  to{\n    -webkit-transform-origin:center;\n            transform-origin:center;\n    -webkit-transform:rotate(200deg);\n            transform:rotate(200deg);\n    opacity:0\n  }\n}\n\n@keyframes rotateOut{\n  0%{\n    -webkit-transform-origin:center;\n            transform-origin:center;\n    opacity:1\n  }\n\n  to{\n    -webkit-transform-origin:center;\n            transform-origin:center;\n    -webkit-transform:rotate(200deg);\n            transform:rotate(200deg);\n    opacity:0\n  }\n}\n\n.rotateOut{\n  -webkit-animation-name:rotateOut;\n          animation-name:rotateOut\n}\n\n@-webkit-keyframes rotateOutDownLeft{\n  0%{\n    -webkit-transform-origin:left bottom;\n            transform-origin:left bottom;\n    opacity:1\n  }\n\n  to{\n    -webkit-transform-origin:left bottom;\n            transform-origin:left bottom;\n    -webkit-transform:rotate(45deg);\n            transform:rotate(45deg);\n    opacity:0\n  }\n}\n\n@keyframes rotateOutDownLeft{\n  0%{\n    -webkit-transform-origin:left bottom;\n            transform-origin:left bottom;\n    opacity:1\n  }\n\n  to{\n    -webkit-transform-origin:left bottom;\n            transform-origin:left bottom;\n    -webkit-transform:rotate(45deg);\n            transform:rotate(45deg);\n    opacity:0\n  }\n}\n\n.rotateOutDownLeft{\n  -webkit-animation-name:rotateOutDownLeft;\n          animation-name:rotateOutDownLeft\n}\n\n@-webkit-keyframes rotateOutDownRight{\n  0%{\n    -webkit-transform-origin:right bottom;\n            transform-origin:right bottom;\n    opacity:1\n  }\n\n  to{\n    -webkit-transform-origin:right bottom;\n            transform-origin:right bottom;\n    -webkit-transform:rotate(-45deg);\n            transform:rotate(-45deg);\n    opacity:0\n  }\n}\n\n@keyframes rotateOutDownRight{\n  0%{\n    -webkit-transform-origin:right bottom;\n            transform-origin:right bottom;\n    opacity:1\n  }\n\n  to{\n    -webkit-transform-origin:right bottom;\n            transform-origin:right bottom;\n    -webkit-transform:rotate(-45deg);\n            transform:rotate(-45deg);\n    opacity:0\n  }\n}\n\n.rotateOutDownRight{\n  -webkit-animation-name:rotateOutDownRight;\n          animation-name:rotateOutDownRight\n}\n\n@-webkit-keyframes rotateOutUpLeft{\n  0%{\n    -webkit-transform-origin:left bottom;\n            transform-origin:left bottom;\n    opacity:1\n  }\n\n  to{\n    -webkit-transform-origin:left bottom;\n            transform-origin:left bottom;\n    -webkit-transform:rotate(-45deg);\n            transform:rotate(-45deg);\n    opacity:0\n  }\n}\n\n@keyframes rotateOutUpLeft{\n  0%{\n    -webkit-transform-origin:left bottom;\n            transform-origin:left bottom;\n    opacity:1\n  }\n\n  to{\n    -webkit-transform-origin:left bottom;\n            transform-origin:left bottom;\n    -webkit-transform:rotate(-45deg);\n            transform:rotate(-45deg);\n    opacity:0\n  }\n}\n\n.rotateOutUpLeft{\n  -webkit-animation-name:rotateOutUpLeft;\n          animation-name:rotateOutUpLeft\n}\n\n@-webkit-keyframes rotateOutUpRight{\n  0%{\n    -webkit-transform-origin:right bottom;\n            transform-origin:right bottom;\n    opacity:1\n  }\n\n  to{\n    -webkit-transform-origin:right bottom;\n            transform-origin:right bottom;\n    -webkit-transform:rotate(90deg);\n            transform:rotate(90deg);\n    opacity:0\n  }\n}\n\n@keyframes rotateOutUpRight{\n  0%{\n    -webkit-transform-origin:right bottom;\n            transform-origin:right bottom;\n    opacity:1\n  }\n\n  to{\n    -webkit-transform-origin:right bottom;\n            transform-origin:right bottom;\n    -webkit-transform:rotate(90deg);\n            transform:rotate(90deg);\n    opacity:0\n  }\n}\n\n.rotateOutUpRight{\n  -webkit-animation-name:rotateOutUpRight;\n          animation-name:rotateOutUpRight\n}\n\n@-webkit-keyframes hinge{\n  0%{\n    -webkit-transform-origin:top left;\n            transform-origin:top left;\n    -webkit-animation-timing-function:ease-in-out;\n            animation-timing-function:ease-in-out\n  }\n\n  20%,60%{\n    -webkit-transform:rotate(80deg);\n            transform:rotate(80deg);\n    -webkit-transform-origin:top left;\n            transform-origin:top left;\n    -webkit-animation-timing-function:ease-in-out;\n            animation-timing-function:ease-in-out\n  }\n\n  40%,80%{\n    -webkit-transform:rotate(60deg);\n            transform:rotate(60deg);\n    -webkit-transform-origin:top left;\n            transform-origin:top left;\n    -webkit-animation-timing-function:ease-in-out;\n            animation-timing-function:ease-in-out;\n    opacity:1\n  }\n\n  to{\n    -webkit-transform:translate3d(0,700px,0);\n            transform:translate3d(0,700px,0);\n    opacity:0\n  }\n}\n\n@keyframes hinge{\n  0%{\n    -webkit-transform-origin:top left;\n            transform-origin:top left;\n    -webkit-animation-timing-function:ease-in-out;\n            animation-timing-function:ease-in-out\n  }\n\n  20%,60%{\n    -webkit-transform:rotate(80deg);\n            transform:rotate(80deg);\n    -webkit-transform-origin:top left;\n            transform-origin:top left;\n    -webkit-animation-timing-function:ease-in-out;\n            animation-timing-function:ease-in-out\n  }\n\n  40%,80%{\n    -webkit-transform:rotate(60deg);\n            transform:rotate(60deg);\n    -webkit-transform-origin:top left;\n            transform-origin:top left;\n    -webkit-animation-timing-function:ease-in-out;\n            animation-timing-function:ease-in-out;\n    opacity:1\n  }\n\n  to{\n    -webkit-transform:translate3d(0,700px,0);\n            transform:translate3d(0,700px,0);\n    opacity:0\n  }\n}\n\n.hinge{\n  -webkit-animation-duration:2s;\n          animation-duration:2s;\n  -webkit-animation-name:hinge;\n          animation-name:hinge\n}\n\n@-webkit-keyframes jackInTheBox{\n  0%{\n    opacity:0;\n    -webkit-transform:scale(.1) rotate(30deg);\n            transform:scale(.1) rotate(30deg);\n    -webkit-transform-origin:center bottom;\n            transform-origin:center bottom\n  }\n\n  50%{\n    -webkit-transform:rotate(-10deg);\n            transform:rotate(-10deg)\n  }\n\n  70%{\n    -webkit-transform:rotate(3deg);\n            transform:rotate(3deg)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:scale(1);\n            transform:scale(1)\n  }\n}\n\n@keyframes jackInTheBox{\n  0%{\n    opacity:0;\n    -webkit-transform:scale(.1) rotate(30deg);\n            transform:scale(.1) rotate(30deg);\n    -webkit-transform-origin:center bottom;\n            transform-origin:center bottom\n  }\n\n  50%{\n    -webkit-transform:rotate(-10deg);\n            transform:rotate(-10deg)\n  }\n\n  70%{\n    -webkit-transform:rotate(3deg);\n            transform:rotate(3deg)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:scale(1);\n            transform:scale(1)\n  }\n}\n\n.jackInTheBox{\n  -webkit-animation-name:jackInTheBox;\n          animation-name:jackInTheBox\n}\n\n@-webkit-keyframes rollIn{\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(-100%,0,0) rotate(-120deg);\n            transform:translate3d(-100%,0,0) rotate(-120deg)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes rollIn{\n  0%{\n    opacity:0;\n    -webkit-transform:translate3d(-100%,0,0) rotate(-120deg);\n            transform:translate3d(-100%,0,0) rotate(-120deg)\n  }\n\n  to{\n    opacity:1;\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.rollIn{\n  -webkit-animation-name:rollIn;\n          animation-name:rollIn\n}\n\n@-webkit-keyframes rollOut{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(100%,0,0) rotate(120deg);\n            transform:translate3d(100%,0,0) rotate(120deg)\n  }\n}\n\n@keyframes rollOut{\n  0%{\n    opacity:1\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:translate3d(100%,0,0) rotate(120deg);\n            transform:translate3d(100%,0,0) rotate(120deg)\n  }\n}\n\n.rollOut{\n  -webkit-animation-name:rollOut;\n          animation-name:rollOut\n}\n\n@-webkit-keyframes zoomIn{\n  0%{\n    opacity:0;\n    -webkit-transform:scale3d(.3,.3,.3);\n            transform:scale3d(.3,.3,.3)\n  }\n\n  50%{\n    opacity:1\n  }\n}\n\n@keyframes zoomIn{\n  0%{\n    opacity:0;\n    -webkit-transform:scale3d(.3,.3,.3);\n            transform:scale3d(.3,.3,.3)\n  }\n\n  50%{\n    opacity:1\n  }\n}\n\n.zoomIn{\n  -webkit-animation-name:zoomIn;\n          animation-name:zoomIn\n}\n\n@-webkit-keyframes zoomInDown{\n  0%{\n    opacity:0;\n    -webkit-transform:scale3d(.1,.1,.1) translate3d(0,-1000px,0);\n            transform:scale3d(.1,.1,.1) translate3d(0,-1000px,0);\n    -webkit-animation-timing-function:cubic-bezier(.55,.055,.675,.19);\n            animation-timing-function:cubic-bezier(.55,.055,.675,.19)\n  }\n\n  60%{\n    opacity:1;\n    -webkit-transform:scale3d(.475,.475,.475) translate3d(0,60px,0);\n            transform:scale3d(.475,.475,.475) translate3d(0,60px,0);\n    -webkit-animation-timing-function:cubic-bezier(.175,.885,.32,1);\n            animation-timing-function:cubic-bezier(.175,.885,.32,1)\n  }\n}\n\n@keyframes zoomInDown{\n  0%{\n    opacity:0;\n    -webkit-transform:scale3d(.1,.1,.1) translate3d(0,-1000px,0);\n            transform:scale3d(.1,.1,.1) translate3d(0,-1000px,0);\n    -webkit-animation-timing-function:cubic-bezier(.55,.055,.675,.19);\n            animation-timing-function:cubic-bezier(.55,.055,.675,.19)\n  }\n\n  60%{\n    opacity:1;\n    -webkit-transform:scale3d(.475,.475,.475) translate3d(0,60px,0);\n            transform:scale3d(.475,.475,.475) translate3d(0,60px,0);\n    -webkit-animation-timing-function:cubic-bezier(.175,.885,.32,1);\n            animation-timing-function:cubic-bezier(.175,.885,.32,1)\n  }\n}\n\n.zoomInDown{\n  -webkit-animation-name:zoomInDown;\n          animation-name:zoomInDown\n}\n\n@-webkit-keyframes zoomInLeft{\n  0%{\n    opacity:0;\n    -webkit-transform:scale3d(.1,.1,.1) translate3d(-1000px,0,0);\n            transform:scale3d(.1,.1,.1) translate3d(-1000px,0,0);\n    -webkit-animation-timing-function:cubic-bezier(.55,.055,.675,.19);\n            animation-timing-function:cubic-bezier(.55,.055,.675,.19)\n  }\n\n  60%{\n    opacity:1;\n    -webkit-transform:scale3d(.475,.475,.475) translate3d(10px,0,0);\n            transform:scale3d(.475,.475,.475) translate3d(10px,0,0);\n    -webkit-animation-timing-function:cubic-bezier(.175,.885,.32,1);\n            animation-timing-function:cubic-bezier(.175,.885,.32,1)\n  }\n}\n\n@keyframes zoomInLeft{\n  0%{\n    opacity:0;\n    -webkit-transform:scale3d(.1,.1,.1) translate3d(-1000px,0,0);\n            transform:scale3d(.1,.1,.1) translate3d(-1000px,0,0);\n    -webkit-animation-timing-function:cubic-bezier(.55,.055,.675,.19);\n            animation-timing-function:cubic-bezier(.55,.055,.675,.19)\n  }\n\n  60%{\n    opacity:1;\n    -webkit-transform:scale3d(.475,.475,.475) translate3d(10px,0,0);\n            transform:scale3d(.475,.475,.475) translate3d(10px,0,0);\n    -webkit-animation-timing-function:cubic-bezier(.175,.885,.32,1);\n            animation-timing-function:cubic-bezier(.175,.885,.32,1)\n  }\n}\n\n.zoomInLeft{\n  -webkit-animation-name:zoomInLeft;\n          animation-name:zoomInLeft\n}\n\n@-webkit-keyframes zoomInRight{\n  0%{\n    opacity:0;\n    -webkit-transform:scale3d(.1,.1,.1) translate3d(1000px,0,0);\n            transform:scale3d(.1,.1,.1) translate3d(1000px,0,0);\n    -webkit-animation-timing-function:cubic-bezier(.55,.055,.675,.19);\n            animation-timing-function:cubic-bezier(.55,.055,.675,.19)\n  }\n\n  60%{\n    opacity:1;\n    -webkit-transform:scale3d(.475,.475,.475) translate3d(-10px,0,0);\n            transform:scale3d(.475,.475,.475) translate3d(-10px,0,0);\n    -webkit-animation-timing-function:cubic-bezier(.175,.885,.32,1);\n            animation-timing-function:cubic-bezier(.175,.885,.32,1)\n  }\n}\n\n@keyframes zoomInRight{\n  0%{\n    opacity:0;\n    -webkit-transform:scale3d(.1,.1,.1) translate3d(1000px,0,0);\n            transform:scale3d(.1,.1,.1) translate3d(1000px,0,0);\n    -webkit-animation-timing-function:cubic-bezier(.55,.055,.675,.19);\n            animation-timing-function:cubic-bezier(.55,.055,.675,.19)\n  }\n\n  60%{\n    opacity:1;\n    -webkit-transform:scale3d(.475,.475,.475) translate3d(-10px,0,0);\n            transform:scale3d(.475,.475,.475) translate3d(-10px,0,0);\n    -webkit-animation-timing-function:cubic-bezier(.175,.885,.32,1);\n            animation-timing-function:cubic-bezier(.175,.885,.32,1)\n  }\n}\n\n.zoomInRight{\n  -webkit-animation-name:zoomInRight;\n          animation-name:zoomInRight\n}\n\n@-webkit-keyframes zoomInUp{\n  0%{\n    opacity:0;\n    -webkit-transform:scale3d(.1,.1,.1) translate3d(0,1000px,0);\n            transform:scale3d(.1,.1,.1) translate3d(0,1000px,0);\n    -webkit-animation-timing-function:cubic-bezier(.55,.055,.675,.19);\n            animation-timing-function:cubic-bezier(.55,.055,.675,.19)\n  }\n\n  60%{\n    opacity:1;\n    -webkit-transform:scale3d(.475,.475,.475) translate3d(0,-60px,0);\n            transform:scale3d(.475,.475,.475) translate3d(0,-60px,0);\n    -webkit-animation-timing-function:cubic-bezier(.175,.885,.32,1);\n            animation-timing-function:cubic-bezier(.175,.885,.32,1)\n  }\n}\n\n@keyframes zoomInUp{\n  0%{\n    opacity:0;\n    -webkit-transform:scale3d(.1,.1,.1) translate3d(0,1000px,0);\n            transform:scale3d(.1,.1,.1) translate3d(0,1000px,0);\n    -webkit-animation-timing-function:cubic-bezier(.55,.055,.675,.19);\n            animation-timing-function:cubic-bezier(.55,.055,.675,.19)\n  }\n\n  60%{\n    opacity:1;\n    -webkit-transform:scale3d(.475,.475,.475) translate3d(0,-60px,0);\n            transform:scale3d(.475,.475,.475) translate3d(0,-60px,0);\n    -webkit-animation-timing-function:cubic-bezier(.175,.885,.32,1);\n            animation-timing-function:cubic-bezier(.175,.885,.32,1)\n  }\n}\n\n.zoomInUp{\n  -webkit-animation-name:zoomInUp;\n          animation-name:zoomInUp\n}\n\n@-webkit-keyframes zoomOut{\n  0%{\n    opacity:1\n  }\n\n  50%{\n    opacity:0;\n    -webkit-transform:scale3d(.3,.3,.3);\n            transform:scale3d(.3,.3,.3)\n  }\n\n  to{\n    opacity:0\n  }\n}\n\n@keyframes zoomOut{\n  0%{\n    opacity:1\n  }\n\n  50%{\n    opacity:0;\n    -webkit-transform:scale3d(.3,.3,.3);\n            transform:scale3d(.3,.3,.3)\n  }\n\n  to{\n    opacity:0\n  }\n}\n\n.zoomOut{\n  -webkit-animation-name:zoomOut;\n          animation-name:zoomOut\n}\n\n@-webkit-keyframes zoomOutDown{\n  40%{\n    opacity:1;\n    -webkit-transform:scale3d(.475,.475,.475) translate3d(0,-60px,0);\n            transform:scale3d(.475,.475,.475) translate3d(0,-60px,0);\n    -webkit-animation-timing-function:cubic-bezier(.55,.055,.675,.19);\n            animation-timing-function:cubic-bezier(.55,.055,.675,.19)\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:scale3d(.1,.1,.1) translate3d(0,2000px,0);\n            transform:scale3d(.1,.1,.1) translate3d(0,2000px,0);\n    -webkit-transform-origin:center bottom;\n            transform-origin:center bottom;\n    -webkit-animation-timing-function:cubic-bezier(.175,.885,.32,1);\n            animation-timing-function:cubic-bezier(.175,.885,.32,1)\n  }\n}\n\n@keyframes zoomOutDown{\n  40%{\n    opacity:1;\n    -webkit-transform:scale3d(.475,.475,.475) translate3d(0,-60px,0);\n            transform:scale3d(.475,.475,.475) translate3d(0,-60px,0);\n    -webkit-animation-timing-function:cubic-bezier(.55,.055,.675,.19);\n            animation-timing-function:cubic-bezier(.55,.055,.675,.19)\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:scale3d(.1,.1,.1) translate3d(0,2000px,0);\n            transform:scale3d(.1,.1,.1) translate3d(0,2000px,0);\n    -webkit-transform-origin:center bottom;\n            transform-origin:center bottom;\n    -webkit-animation-timing-function:cubic-bezier(.175,.885,.32,1);\n            animation-timing-function:cubic-bezier(.175,.885,.32,1)\n  }\n}\n\n.zoomOutDown{\n  -webkit-animation-name:zoomOutDown;\n          animation-name:zoomOutDown\n}\n\n@-webkit-keyframes zoomOutLeft{\n  40%{\n    opacity:1;\n    -webkit-transform:scale3d(.475,.475,.475) translate3d(42px,0,0);\n            transform:scale3d(.475,.475,.475) translate3d(42px,0,0)\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:scale(.1) translate3d(-2000px,0,0);\n            transform:scale(.1) translate3d(-2000px,0,0);\n    -webkit-transform-origin:left center;\n            transform-origin:left center\n  }\n}\n\n@keyframes zoomOutLeft{\n  40%{\n    opacity:1;\n    -webkit-transform:scale3d(.475,.475,.475) translate3d(42px,0,0);\n            transform:scale3d(.475,.475,.475) translate3d(42px,0,0)\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:scale(.1) translate3d(-2000px,0,0);\n            transform:scale(.1) translate3d(-2000px,0,0);\n    -webkit-transform-origin:left center;\n            transform-origin:left center\n  }\n}\n\n.zoomOutLeft{\n  -webkit-animation-name:zoomOutLeft;\n          animation-name:zoomOutLeft\n}\n\n@-webkit-keyframes zoomOutRight{\n  40%{\n    opacity:1;\n    -webkit-transform:scale3d(.475,.475,.475) translate3d(-42px,0,0);\n            transform:scale3d(.475,.475,.475) translate3d(-42px,0,0)\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:scale(.1) translate3d(2000px,0,0);\n            transform:scale(.1) translate3d(2000px,0,0);\n    -webkit-transform-origin:right center;\n            transform-origin:right center\n  }\n}\n\n@keyframes zoomOutRight{\n  40%{\n    opacity:1;\n    -webkit-transform:scale3d(.475,.475,.475) translate3d(-42px,0,0);\n            transform:scale3d(.475,.475,.475) translate3d(-42px,0,0)\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:scale(.1) translate3d(2000px,0,0);\n            transform:scale(.1) translate3d(2000px,0,0);\n    -webkit-transform-origin:right center;\n            transform-origin:right center\n  }\n}\n\n.zoomOutRight{\n  -webkit-animation-name:zoomOutRight;\n          animation-name:zoomOutRight\n}\n\n@-webkit-keyframes zoomOutUp{\n  40%{\n    opacity:1;\n    -webkit-transform:scale3d(.475,.475,.475) translate3d(0,60px,0);\n            transform:scale3d(.475,.475,.475) translate3d(0,60px,0);\n    -webkit-animation-timing-function:cubic-bezier(.55,.055,.675,.19);\n            animation-timing-function:cubic-bezier(.55,.055,.675,.19)\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:scale3d(.1,.1,.1) translate3d(0,-2000px,0);\n            transform:scale3d(.1,.1,.1) translate3d(0,-2000px,0);\n    -webkit-transform-origin:center bottom;\n            transform-origin:center bottom;\n    -webkit-animation-timing-function:cubic-bezier(.175,.885,.32,1);\n            animation-timing-function:cubic-bezier(.175,.885,.32,1)\n  }\n}\n\n@keyframes zoomOutUp{\n  40%{\n    opacity:1;\n    -webkit-transform:scale3d(.475,.475,.475) translate3d(0,60px,0);\n            transform:scale3d(.475,.475,.475) translate3d(0,60px,0);\n    -webkit-animation-timing-function:cubic-bezier(.55,.055,.675,.19);\n            animation-timing-function:cubic-bezier(.55,.055,.675,.19)\n  }\n\n  to{\n    opacity:0;\n    -webkit-transform:scale3d(.1,.1,.1) translate3d(0,-2000px,0);\n            transform:scale3d(.1,.1,.1) translate3d(0,-2000px,0);\n    -webkit-transform-origin:center bottom;\n            transform-origin:center bottom;\n    -webkit-animation-timing-function:cubic-bezier(.175,.885,.32,1);\n            animation-timing-function:cubic-bezier(.175,.885,.32,1)\n  }\n}\n\n.zoomOutUp{\n  -webkit-animation-name:zoomOutUp;\n          animation-name:zoomOutUp\n}\n\n@-webkit-keyframes slideInDown{\n  0%{\n    -webkit-transform:translate3d(0,-100%,0);\n            transform:translate3d(0,-100%,0);\n    visibility:visible\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes slideInDown{\n  0%{\n    -webkit-transform:translate3d(0,-100%,0);\n            transform:translate3d(0,-100%,0);\n    visibility:visible\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.slideInDown{\n  -webkit-animation-name:slideInDown;\n          animation-name:slideInDown\n}\n\n@-webkit-keyframes slideInLeft{\n  0%{\n    -webkit-transform:translate3d(-100%,0,0);\n            transform:translate3d(-100%,0,0);\n    visibility:visible\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes slideInLeft{\n  0%{\n    -webkit-transform:translate3d(-100%,0,0);\n            transform:translate3d(-100%,0,0);\n    visibility:visible\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.slideInLeft{\n  -webkit-animation-name:slideInLeft;\n          animation-name:slideInLeft\n}\n\n@-webkit-keyframes slideInRight{\n  0%{\n    -webkit-transform:translate3d(100%,0,0);\n            transform:translate3d(100%,0,0);\n    visibility:visible\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes slideInRight{\n  0%{\n    -webkit-transform:translate3d(100%,0,0);\n            transform:translate3d(100%,0,0);\n    visibility:visible\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.slideInRight{\n  -webkit-animation-name:slideInRight;\n          animation-name:slideInRight\n}\n\n@-webkit-keyframes slideInUp{\n  0%{\n    -webkit-transform:translate3d(0,100%,0);\n            transform:translate3d(0,100%,0);\n    visibility:visible\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n@keyframes slideInUp{\n  0%{\n    -webkit-transform:translate3d(0,100%,0);\n            transform:translate3d(0,100%,0);\n    visibility:visible\n  }\n\n  to{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n}\n\n.slideInUp{\n  -webkit-animation-name:slideInUp;\n          animation-name:slideInUp\n}\n\n@-webkit-keyframes slideOutDown{\n  0%{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n\n  to{\n    visibility:hidden;\n    -webkit-transform:translate3d(0,100%,0);\n            transform:translate3d(0,100%,0)\n  }\n}\n\n@keyframes slideOutDown{\n  0%{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n\n  to{\n    visibility:hidden;\n    -webkit-transform:translate3d(0,100%,0);\n            transform:translate3d(0,100%,0)\n  }\n}\n\n.slideOutDown{\n  -webkit-animation-name:slideOutDown;\n          animation-name:slideOutDown\n}\n\n@-webkit-keyframes slideOutLeft{\n  0%{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n\n  to{\n    visibility:hidden;\n    -webkit-transform:translate3d(-100%,0,0);\n            transform:translate3d(-100%,0,0)\n  }\n}\n\n@keyframes slideOutLeft{\n  0%{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n\n  to{\n    visibility:hidden;\n    -webkit-transform:translate3d(-100%,0,0);\n            transform:translate3d(-100%,0,0)\n  }\n}\n\n.slideOutLeft{\n  -webkit-animation-name:slideOutLeft;\n          animation-name:slideOutLeft\n}\n\n@-webkit-keyframes slideOutRight{\n  0%{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n\n  to{\n    visibility:hidden;\n    -webkit-transform:translate3d(100%,0,0);\n            transform:translate3d(100%,0,0)\n  }\n}\n\n@keyframes slideOutRight{\n  0%{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n\n  to{\n    visibility:hidden;\n    -webkit-transform:translate3d(100%,0,0);\n            transform:translate3d(100%,0,0)\n  }\n}\n\n.slideOutRight{\n  -webkit-animation-name:slideOutRight;\n          animation-name:slideOutRight\n}\n\n@-webkit-keyframes slideOutUp{\n  0%{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n\n  to{\n    visibility:hidden;\n    -webkit-transform:translate3d(0,-100%,0);\n            transform:translate3d(0,-100%,0)\n  }\n}\n\n@keyframes slideOutUp{\n  0%{\n    -webkit-transform:translateZ(0);\n            transform:translateZ(0)\n  }\n\n  to{\n    visibility:hidden;\n    -webkit-transform:translate3d(0,-100%,0);\n            transform:translate3d(0,-100%,0)\n  }\n}\n\n.slideOutUp{\n  -webkit-animation-name:slideOutUp;\n          animation-name:slideOutUp\n}\n\n.animated{\n  -webkit-animation-duration:1s;\n          animation-duration:1s;\n  -webkit-animation-fill-mode:both;\n          animation-fill-mode:both\n}\n\n.animated.infinite{\n  -webkit-animation-iteration-count:infinite;\n          animation-iteration-count:infinite\n}\n\n.animated.delay-1s{\n  -webkit-animation-delay:1s;\n          animation-delay:1s\n}\n\n.animated.delay-2s{\n  -webkit-animation-delay:2s;\n          animation-delay:2s\n}\n\n.animated.delay-3s{\n  -webkit-animation-delay:3s;\n          animation-delay:3s\n}\n\n.animated.delay-4s{\n  -webkit-animation-delay:4s;\n          animation-delay:4s\n}\n\n.animated.delay-5s{\n  -webkit-animation-delay:5s;\n          animation-delay:5s\n}\n\n.animated.fast{\n  -webkit-animation-duration:.8s;\n          animation-duration:.8s\n}\n\n.animated.faster{\n  -webkit-animation-duration:.5s;\n          animation-duration:.5s\n}\n\n.animated.slow{\n  -webkit-animation-duration:2s;\n          animation-duration:2s\n}\n\n.animated.slower{\n  -webkit-animation-duration:3s;\n          animation-duration:3s\n}\n\n@media (prefers-reduced-motion:reduce),(print){\n  .animated{\n    -webkit-animation-duration:1ms!important;\n            animation-duration:1ms!important;\n    -webkit-transition-duration:1ms!important;\n            transition-duration:1ms!important;\n    -webkit-animation-iteration-count:1!important;\n            animation-iteration-count:1!important\n  }\n}", ""]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -372,6 +2248,17 @@ module.exports = function (cssWithMappingToString) {
 
 /***/ }),
 
+/***/ "./node_modules/cxlt-vue2-toastr/dist/js/cxlt-vue2-toastr.js":
+/*!*******************************************************************!*\
+  !*** ./node_modules/cxlt-vue2-toastr/dist/js/cxlt-vue2-toastr.js ***!
+  \*******************************************************************/
+/***/ (function(module) {
+
+!function(t,e){ true?module.exports=e():0}(this,function(){return function(t){function e(r){if(n[r])return n[r].exports;var o=n[r]={i:r,l:!1,exports:{}};return t[r].call(o.exports,o,o.exports,e),o.l=!0,o.exports}var n={};return e.m=t,e.c=n,e.i=function(t){return t},e.d=function(t,n,r){e.o(t,n)||Object.defineProperty(t,n,{configurable:!1,enumerable:!0,get:r})},e.n=function(t){var n=t&&t.__esModule?function(){return t.default}:function(){return t};return e.d(n,"a",n),n},e.o=function(t,e){return Object.prototype.hasOwnProperty.call(t,e)},e.p="/",e(e.s=43)}([function(t,e){var n=t.exports="undefined"!=typeof window&&window.Math==Math?window:"undefined"!=typeof self&&self.Math==Math?self:Function("return this")();"number"==typeof __g&&(__g=n)},function(t,e,n){t.exports=!n(8)(function(){return 7!=Object.defineProperty({},"a",{get:function(){return 7}}).a})},function(t,e){var n={}.hasOwnProperty;t.exports=function(t,e){return n.call(t,e)}},function(t,e,n){var r=n(4),o=n(14);t.exports=n(1)?function(t,e,n){return r.f(t,e,o(1,n))}:function(t,e,n){return t[e]=n,t}},function(t,e,n){var r=n(10),o=n(31),i=n(26),s=Object.defineProperty;e.f=n(1)?Object.defineProperty:function(t,e,n){if(r(t),e=i(e,!0),r(n),o)try{return s(t,e,n)}catch(t){}if("get"in n||"set"in n)throw TypeError("Accessors not supported!");return"value"in n&&(t[e]=n.value),t}},function(t,e,n){var r=n(32),o=n(16);t.exports=function(t){return r(o(t))}},function(t,e,n){var r=n(23)("wks"),o=n(15),i=n(0).Symbol,s="function"==typeof i;(t.exports=function(t){return r[t]||(r[t]=s&&i[t]||(s?i:o)("Symbol."+t))}).store=r},function(t,e){var n=t.exports={version:"2.6.9"};"number"==typeof __e&&(__e=n)},function(t,e){t.exports=function(t){try{return!!t()}catch(t){return!0}}},function(t,e){t.exports=function(t){return"object"==typeof t?null!==t:"function"==typeof t}},function(t,e,n){var r=n(9);t.exports=function(t){if(!r(t))throw TypeError(t+" is not an object!");return t}},function(t,e){t.exports=!0},function(t,e,n){var r=n(36),o=n(17);t.exports=Object.keys||function(t){return r(t,o)}},function(t,e){e.f={}.propertyIsEnumerable},function(t,e){t.exports=function(t,e){return{enumerable:!(1&t),configurable:!(2&t),writable:!(4&t),value:e}}},function(t,e){var n=0,r=Math.random();t.exports=function(t){return"Symbol(".concat(void 0===t?"":t,")_",(++n+r).toString(36))}},function(t,e){t.exports=function(t){if(void 0==t)throw TypeError("Can't call method on  "+t);return t}},function(t,e){t.exports="constructor,hasOwnProperty,isPrototypeOf,propertyIsEnumerable,toLocaleString,toString,valueOf".split(",")},function(t,e,n){var r=n(0),o=n(7),i=n(53),s=n(3),u=n(2),c=function(t,e,n){var a,f,l,p=t&c.F,h=t&c.G,d=t&c.S,y=t&c.P,A=t&c.B,g=t&c.W,v=h?o:o[e]||(o[e]={}),m=v.prototype,b=h?r:d?r[e]:(r[e]||{}).prototype;h&&(n=e);for(a in n)(f=!p&&b&&void 0!==b[a])&&u(v,a)||(l=f?b[a]:n[a],v[a]=h&&"function"!=typeof b[a]?n[a]:A&&f?i(l,r):g&&b[a]==l?function(t){var e=function(e,n,r){if(this instanceof t){switch(arguments.length){case 0:return new t;case 1:return new t(e);case 2:return new t(e,n)}return new t(e,n,r)}return t.apply(this,arguments)};return e.prototype=t.prototype,e}(l):y&&"function"==typeof l?i(Function.call,l):l,y&&((v.virtual||(v.virtual={}))[a]=l,t&c.R&&m&&!m[a]&&s(m,a,l)))};c.F=1,c.G=2,c.S=4,c.P=8,c.B=16,c.W=32,c.U=64,c.R=128,t.exports=c},function(t,e){t.exports={}},function(t,e){e.f=Object.getOwnPropertySymbols},function(t,e,n){var r=n(4).f,o=n(2),i=n(6)("toStringTag");t.exports=function(t,e,n){t&&!o(t=n?t:t.prototype,i)&&r(t,i,{configurable:!0,value:e})}},function(t,e,n){var r=n(23)("keys"),o=n(15);t.exports=function(t){return r[t]||(r[t]=o(t))}},function(t,e,n){var r=n(7),o=n(0),i=o["__core-js_shared__"]||(o["__core-js_shared__"]={});(t.exports=function(t,e){return i[t]||(i[t]=void 0!==e?e:{})})("versions",[]).push({version:r.version,mode:n(11)?"pure":"global",copyright:"© 2019 Denis Pushkarev (zloirock.ru)"})},function(t,e){var n=Math.ceil,r=Math.floor;t.exports=function(t){return isNaN(t=+t)?0:(t>0?r:n)(t)}},function(t,e,n){var r=n(16);t.exports=function(t){return Object(r(t))}},function(t,e,n){var r=n(9);t.exports=function(t,e){if(!r(t))return t;var n,o;if(e&&"function"==typeof(n=t.toString)&&!r(o=n.call(t)))return o;if("function"==typeof(n=t.valueOf)&&!r(o=n.call(t)))return o;if(!e&&"function"==typeof(n=t.toString)&&!r(o=n.call(t)))return o;throw TypeError("Can't convert object to primitive value")}},function(t,e,n){var r=n(0),o=n(7),i=n(11),s=n(28),u=n(4).f;t.exports=function(t){var e=o.Symbol||(o.Symbol=i?{}:r.Symbol||{});"_"==t.charAt(0)||t in e||u(e,t,{value:s.f(t)})}},function(t,e,n){e.f=n(6)},function(t,e){var n={}.toString;t.exports=function(t){return n.call(t).slice(8,-1)}},function(t,e,n){var r=n(9),o=n(0).document,i=r(o)&&r(o.createElement);t.exports=function(t){return i?o.createElement(t):{}}},function(t,e,n){t.exports=!n(1)&&!n(8)(function(){return 7!=Object.defineProperty(n(30)("div"),"a",{get:function(){return 7}}).a})},function(t,e,n){var r=n(29);t.exports=Object("z").propertyIsEnumerable(0)?Object:function(t){return"String"==r(t)?t.split(""):Object(t)}},function(t,e,n){"use strict";var r=n(11),o=n(18),i=n(37),s=n(3),u=n(19),c=n(57),a=n(21),f=n(64),l=n(6)("iterator"),p=!([].keys&&"next"in[].keys()),h=function(){return this};t.exports=function(t,e,n,d,y,A,g){c(n,e,d);var v,m,b,x=function(t){if(!p&&t in O)return O[t];switch(t){case"keys":case"values":return function(){return new n(this,t)}}return function(){return new n(this,t)}},S=e+" Iterator",w="values"==y,C=!1,O=t.prototype,B=O[l]||O["@@iterator"]||y&&O[y],M=B||x(y),E=y?w?x("entries"):M:void 0,I="Array"==e?O.entries||B:B;if(I&&(b=f(I.call(new t)))!==Object.prototype&&b.next&&(a(b,S,!0),r||"function"==typeof b[l]||s(b,l,h)),w&&B&&"values"!==B.name&&(C=!0,M=function(){return B.call(this)}),r&&!g||!p&&!C&&O[l]||s(O,l,M),u[e]=M,u[S]=h,y)if(v={values:w?M:x("values"),keys:A?M:x("keys"),entries:E},g)for(m in v)m in O||i(O,m,v[m]);else o(o.P+o.F*(p||C),e,v);return v}},function(t,e,n){var r=n(10),o=n(61),i=n(17),s=n(22)("IE_PROTO"),u=function(){},c=function(){var t,e=n(30)("iframe"),r=i.length;for(e.style.display="none",n(55).appendChild(e),e.src="javascript:",t=e.contentWindow.document,t.open(),t.write("<script>document.F=Object<\/script>"),t.close(),c=t.F;r--;)delete c.prototype[i[r]];return c()};t.exports=Object.create||function(t,e){var n;return null!==t?(u.prototype=r(t),n=new u,u.prototype=null,n[s]=t):n=c(),void 0===e?n:o(n,e)}},function(t,e,n){var r=n(36),o=n(17).concat("length","prototype");e.f=Object.getOwnPropertyNames||function(t){return r(t,o)}},function(t,e,n){var r=n(2),o=n(5),i=n(52)(!1),s=n(22)("IE_PROTO");t.exports=function(t,e){var n,u=o(t),c=0,a=[];for(n in u)n!=s&&r(u,n)&&a.push(n);for(;e.length>c;)r(u,n=e[c++])&&(~i(a,n)||a.push(n));return a}},function(t,e,n){t.exports=n(3)},function(t,e,n){t.exports={default:n(47),__esModule:!0}},function(t,e,n){"use strict";function r(t){return t&&t.__esModule?t:{default:t}}e.__esModule=!0;var o=n(46),i=r(o),s=n(45),u=r(s),c="function"==typeof u.default&&"symbol"==typeof i.default?function(t){return typeof t}:function(t){return t&&"function"==typeof u.default&&t.constructor===u.default&&t!==u.default.prototype?"symbol":typeof t};e.default="function"==typeof u.default&&"symbol"===c(i.default)?function(t){return void 0===t?"undefined":c(t)}:function(t){return t&&"function"==typeof u.default&&t.constructor===u.default&&t!==u.default.prototype?"symbol":void 0===t?"undefined":c(t)}},function(t,e){},function(t,e){},function(t,e,n){var r=n(80)(n(44),n(81),null,null);r.options.__file="/Users/chengxulvtu/Documents/github/cxlt-vue2-toastr/src/Toastr.vue",r.esModule&&Object.keys(r.esModule).some(function(t){return"default"!==t&&"__esModule"!==t})&&console.error("named exports are not supported in *.vue files."),r.options.functional&&console.error("[vue-loader] Toastr.vue: functional components are not supported with templates, they should use render functions."),t.exports=r.exports},function(t,e,n){"use strict";Object.defineProperty(e,"__esModule",{value:!0});var r=n(39),o=n.n(r),i=n(38),s=n.n(i),u=n(42),c=n.n(u),a=n(41),f=(n.n(a),n(40)),l=(n.n(f),{install:function(t,e){function n(n,r){var o=t.extend(c.a),u=s()(e,n,{type:r}),a=new o({el:document.createElement("div"),propsData:u});return i.push(a),a}function r(t){return"object"!==(void 0===t?"undefined":o()(t))&&"function"!=typeof t&&(t={message:t.toString()}),t}e||(e={});var i=[];t.prototype.$toast={success:function(t){return n(r(t),"success")},info:function(t){return n(r(t),"info")},warn:function(t){return n(r(t),"warning")},error:function(t){return n(r(t),"error")},removeAll:function(){i.forEach(function(t){t.hideToastr()}),i=[]}}}});e.default=l},function(t,e,n){"use strict";Object.defineProperty(e,"__esModule",{value:!0}),e.default={name:"CxltToastr",data:function(){return{progress:{hideEta:0,percent:0,intervalId:null},show:!1,defaultIcons:{success:n(78),info:n(77),warning:n(79),error:n(76)}}},props:{type:{type:String,default:"success"},position:{type:String,default:"top center"},title:{type:String},message:{type:String},useHtml:{type:Boolean,default:!1},closeButton:{type:Boolean,default:!0},progressBar:{type:Boolean,default:!1},icon:{type:String},timeOut:{default:"1500"},showMethod:{type:String,default:"fadeIn"},hideMethod:{type:String,default:"fadeOut"},showDuration:{default:"1000"},hideDuration:{default:"1000"},delay:{default:"0"},successColor:{type:String},infoColor:{type:String},warningColor:{type:String},errorColor:{type:String},color:{type:String}},beforeMount:function(){var t=document.querySelector(".cxlt-toastr-container.toast-"+this.positionClass);t||(t=document.createElement("div"),t.classList.add("cxlt-toastr-container"),t.classList.add("toast-"+this.positionClass),document.body.appendChild(t)),t.appendChild(this.$el)},mounted:function(){var t=this;setTimeout(function(){return t.showToastr()},this.delay)},computed:{positionClass:function(){return this.position.split(" ").join("-")},enterActiveClass:function(){return"animated "+this.showMethod},leaveActiveClass:function(){return"animated "+this.hideMethod},toastBackgroundColor:function(){return this.color?this.color:"success"===this.type&&this.successColor?this.successColor:"info"===this.type&&this.infoColor?this.infoColor:"warning"===this.type&&this.warningColor?this.warningColor:"error"===this.type&&this.errorColor?this.errorColor:null},iconSrc:function(){return this.icon?this.icon:this.defaultIcons[this.type]}},methods:{showToastr:function(){var t=this;this.show=!0,this.sto=setTimeout(function(){return t.hideToastr()},this.timeOut),this.progressBar&&(this.progress.hideEta=(new Date).getTime()+parseFloat(this.timeOut),this.progress.intervalId=setInterval(function(){return t.refreshProgress()},10))},hideToastr:function(){clearTimeout(this.sto),clearTimeout(this.progress.intervalId),this.show=!1},refreshProgress:function(){this.progress.percent=(this.progress.hideEta-(new Date).getTime())/this.timeOut*100},beforeEnter:function(t){t.style.animationDuration=this.showDuration+"ms"},afterEnter:function(t){this.$el.classList.add("animated"),this.$el.classList.add(this.showMethod)},beforeLeave:function(t){t.style.animationDuration=this.hideDuration+"ms"}}}},function(t,e,n){t.exports={default:n(48),__esModule:!0}},function(t,e,n){t.exports={default:n(49),__esModule:!0}},function(t,e,n){n(69),t.exports=n(7).Object.assign},function(t,e,n){n(72),n(70),n(73),n(74),t.exports=n(7).Symbol},function(t,e,n){n(71),n(75),t.exports=n(28).f("iterator")},function(t,e){t.exports=function(t){if("function"!=typeof t)throw TypeError(t+" is not a function!");return t}},function(t,e){t.exports=function(){}},function(t,e,n){var r=n(5),o=n(67),i=n(66);t.exports=function(t){return function(e,n,s){var u,c=r(e),a=o(c.length),f=i(s,a);if(t&&n!=n){for(;a>f;)if((u=c[f++])!=u)return!0}else for(;a>f;f++)if((t||f in c)&&c[f]===n)return t||f||0;return!t&&-1}}},function(t,e,n){var r=n(50);t.exports=function(t,e,n){if(r(t),void 0===e)return t;switch(n){case 1:return function(n){return t.call(e,n)};case 2:return function(n,r){return t.call(e,n,r)};case 3:return function(n,r,o){return t.call(e,n,r,o)}}return function(){return t.apply(e,arguments)}}},function(t,e,n){var r=n(12),o=n(20),i=n(13);t.exports=function(t){var e=r(t),n=o.f;if(n)for(var s,u=n(t),c=i.f,a=0;u.length>a;)c.call(t,s=u[a++])&&e.push(s);return e}},function(t,e,n){var r=n(0).document;t.exports=r&&r.documentElement},function(t,e,n){var r=n(29);t.exports=Array.isArray||function(t){return"Array"==r(t)}},function(t,e,n){"use strict";var r=n(34),o=n(14),i=n(21),s={};n(3)(s,n(6)("iterator"),function(){return this}),t.exports=function(t,e,n){t.prototype=r(s,{next:o(1,n)}),i(t,e+" Iterator")}},function(t,e){t.exports=function(t,e){return{value:e,done:!!t}}},function(t,e,n){var r=n(15)("meta"),o=n(9),i=n(2),s=n(4).f,u=0,c=Object.isExtensible||function(){return!0},a=!n(8)(function(){return c(Object.preventExtensions({}))}),f=function(t){s(t,r,{value:{i:"O"+ ++u,w:{}}})},l=function(t,e){if(!o(t))return"symbol"==typeof t?t:("string"==typeof t?"S":"P")+t;if(!i(t,r)){if(!c(t))return"F";if(!e)return"E";f(t)}return t[r].i},p=function(t,e){if(!i(t,r)){if(!c(t))return!0;if(!e)return!1;f(t)}return t[r].w},h=function(t){return a&&d.NEED&&c(t)&&!i(t,r)&&f(t),t},d=t.exports={KEY:r,NEED:!1,fastKey:l,getWeak:p,onFreeze:h}},function(t,e,n){"use strict";var r=n(1),o=n(12),i=n(20),s=n(13),u=n(25),c=n(32),a=Object.assign;t.exports=!a||n(8)(function(){var t={},e={},n=Symbol(),r="abcdefghijklmnopqrst";return t[n]=7,r.split("").forEach(function(t){e[t]=t}),7!=a({},t)[n]||Object.keys(a({},e)).join("")!=r})?function(t,e){for(var n=u(t),a=arguments.length,f=1,l=i.f,p=s.f;a>f;)for(var h,d=c(arguments[f++]),y=l?o(d).concat(l(d)):o(d),A=y.length,g=0;A>g;)h=y[g++],r&&!p.call(d,h)||(n[h]=d[h]);return n}:a},function(t,e,n){var r=n(4),o=n(10),i=n(12);t.exports=n(1)?Object.defineProperties:function(t,e){o(t);for(var n,s=i(e),u=s.length,c=0;u>c;)r.f(t,n=s[c++],e[n]);return t}},function(t,e,n){var r=n(13),o=n(14),i=n(5),s=n(26),u=n(2),c=n(31),a=Object.getOwnPropertyDescriptor;e.f=n(1)?a:function(t,e){if(t=i(t),e=s(e,!0),c)try{return a(t,e)}catch(t){}if(u(t,e))return o(!r.f.call(t,e),t[e])}},function(t,e,n){var r=n(5),o=n(35).f,i={}.toString,s="object"==typeof window&&window&&Object.getOwnPropertyNames?Object.getOwnPropertyNames(window):[],u=function(t){try{return o(t)}catch(t){return s.slice()}};t.exports.f=function(t){return s&&"[object Window]"==i.call(t)?u(t):o(r(t))}},function(t,e,n){var r=n(2),o=n(25),i=n(22)("IE_PROTO"),s=Object.prototype;t.exports=Object.getPrototypeOf||function(t){return t=o(t),r(t,i)?t[i]:"function"==typeof t.constructor&&t instanceof t.constructor?t.constructor.prototype:t instanceof Object?s:null}},function(t,e,n){var r=n(24),o=n(16);t.exports=function(t){return function(e,n){var i,s,u=String(o(e)),c=r(n),a=u.length;return c<0||c>=a?t?"":void 0:(i=u.charCodeAt(c),i<55296||i>56319||c+1===a||(s=u.charCodeAt(c+1))<56320||s>57343?t?u.charAt(c):i:t?u.slice(c,c+2):s-56320+(i-55296<<10)+65536)}}},function(t,e,n){var r=n(24),o=Math.max,i=Math.min;t.exports=function(t,e){return t=r(t),t<0?o(t+e,0):i(t,e)}},function(t,e,n){var r=n(24),o=Math.min;t.exports=function(t){return t>0?o(r(t),9007199254740991):0}},function(t,e,n){"use strict";var r=n(51),o=n(58),i=n(19),s=n(5);t.exports=n(33)(Array,"Array",function(t,e){this._t=s(t),this._i=0,this._k=e},function(){var t=this._t,e=this._k,n=this._i++;return!t||n>=t.length?(this._t=void 0,o(1)):"keys"==e?o(0,n):"values"==e?o(0,t[n]):o(0,[n,t[n]])},"values"),i.Arguments=i.Array,r("keys"),r("values"),r("entries")},function(t,e,n){var r=n(18);r(r.S+r.F,"Object",{assign:n(60)})},function(t,e){},function(t,e,n){"use strict";var r=n(65)(!0);n(33)(String,"String",function(t){this._t=String(t),this._i=0},function(){var t,e=this._t,n=this._i;return n>=e.length?{value:void 0,done:!0}:(t=r(e,n),this._i+=t.length,{value:t,done:!1})})},function(t,e,n){"use strict";var r=n(0),o=n(2),i=n(1),s=n(18),u=n(37),c=n(59).KEY,a=n(8),f=n(23),l=n(21),p=n(15),h=n(6),d=n(28),y=n(27),A=n(54),g=n(56),v=n(10),m=n(9),b=n(25),x=n(5),S=n(26),w=n(14),C=n(34),O=n(63),B=n(62),M=n(20),E=n(4),I=n(12),k=B.f,T=E.f,j=O.f,D=r.Symbol,P=r.JSON,L=P&&P.stringify,R=h("_hidden"),Q=h("toPrimitive"),F={}.propertyIsEnumerable,U=f("symbol-registry"),J=f("symbols"),z=f("op-symbols"),N=Object.prototype,Y="function"==typeof D&&!!M.f,V=r.QObject,G=!V||!V.prototype||!V.prototype.findChild,_=i&&a(function(){return 7!=C(T({},"a",{get:function(){return T(this,"a",{value:7}).a}})).a})?function(t,e,n){var r=k(N,e);r&&delete N[e],T(t,e,n),r&&t!==N&&T(N,e,r)}:T,H=function(t){var e=J[t]=C(D.prototype);return e._k=t,e},K=Y&&"symbol"==typeof D.iterator?function(t){return"symbol"==typeof t}:function(t){return t instanceof D},Z=function(t,e,n){return t===N&&Z(z,e,n),v(t),e=S(e,!0),v(n),o(J,e)?(n.enumerable?(o(t,R)&&t[R][e]&&(t[R][e]=!1),n=C(n,{enumerable:w(0,!1)})):(o(t,R)||T(t,R,w(1,{})),t[R][e]=!0),_(t,e,n)):T(t,e,n)},W=function(t,e){v(t);for(var n,r=A(e=x(e)),o=0,i=r.length;i>o;)Z(t,n=r[o++],e[n]);return t},q=function(t,e){return void 0===e?C(t):W(C(t),e)},X=function(t){var e=F.call(this,t=S(t,!0));return!(this===N&&o(J,t)&&!o(z,t))&&(!(e||!o(this,t)||!o(J,t)||o(this,R)&&this[R][t])||e)},$=function(t,e){if(t=x(t),e=S(e,!0),t!==N||!o(J,e)||o(z,e)){var n=k(t,e);return!n||!o(J,e)||o(t,R)&&t[R][e]||(n.enumerable=!0),n}},tt=function(t){for(var e,n=j(x(t)),r=[],i=0;n.length>i;)o(J,e=n[i++])||e==R||e==c||r.push(e);return r},et=function(t){for(var e,n=t===N,r=j(n?z:x(t)),i=[],s=0;r.length>s;)!o(J,e=r[s++])||n&&!o(N,e)||i.push(J[e]);return i};Y||(D=function(){if(this instanceof D)throw TypeError("Symbol is not a constructor!");var t=p(arguments.length>0?arguments[0]:void 0),e=function(n){this===N&&e.call(z,n),o(this,R)&&o(this[R],t)&&(this[R][t]=!1),_(this,t,w(1,n))};return i&&G&&_(N,t,{configurable:!0,set:e}),H(t)},u(D.prototype,"toString",function(){return this._k}),B.f=$,E.f=Z,n(35).f=O.f=tt,n(13).f=X,M.f=et,i&&!n(11)&&u(N,"propertyIsEnumerable",X,!0),d.f=function(t){return H(h(t))}),s(s.G+s.W+s.F*!Y,{Symbol:D});for(var nt="hasInstance,isConcatSpreadable,iterator,match,replace,search,species,split,toPrimitive,toStringTag,unscopables".split(","),rt=0;nt.length>rt;)h(nt[rt++]);for(var ot=I(h.store),it=0;ot.length>it;)y(ot[it++]);s(s.S+s.F*!Y,"Symbol",{for:function(t){return o(U,t+="")?U[t]:U[t]=D(t)},keyFor:function(t){if(!K(t))throw TypeError(t+" is not a symbol!");for(var e in U)if(U[e]===t)return e},useSetter:function(){G=!0},useSimple:function(){G=!1}}),s(s.S+s.F*!Y,"Object",{create:q,defineProperty:Z,defineProperties:W,getOwnPropertyDescriptor:$,getOwnPropertyNames:tt,getOwnPropertySymbols:et});var st=a(function(){M.f(1)});s(s.S+s.F*st,"Object",{getOwnPropertySymbols:function(t){return M.f(b(t))}}),P&&s(s.S+s.F*(!Y||a(function(){var t=D();return"[null]"!=L([t])||"{}"!=L({a:t})||"{}"!=L(Object(t))})),"JSON",{stringify:function(t){for(var e,n,r=[t],o=1;arguments.length>o;)r.push(arguments[o++]);if(n=e=r[1],(m(e)||void 0!==t)&&!K(t))return g(e)||(e=function(t,e){if("function"==typeof n&&(e=n.call(this,t,e)),!K(e))return e}),r[1]=e,L.apply(P,r)}}),D.prototype[Q]||n(3)(D.prototype,Q,D.prototype.valueOf),l(D,"Symbol"),l(Math,"Math",!0),l(r.JSON,"JSON",!0)},function(t,e,n){n(27)("asyncIterator")},function(t,e,n){n(27)("observable")},function(t,e,n){n(68);for(var r=n(0),o=n(3),i=n(19),s=n(6)("toStringTag"),u="CSSRuleList,CSSStyleDeclaration,CSSValueList,ClientRectList,DOMRectList,DOMStringList,DOMTokenList,DataTransferItemList,FileList,HTMLAllCollection,HTMLCollection,HTMLFormElement,HTMLSelectElement,MediaList,MimeTypeArray,NamedNodeMap,NodeList,PaintRequestList,Plugin,PluginArray,SVGLengthList,SVGNumberList,SVGPathSegList,SVGPointList,SVGStringList,SVGTransformList,SourceBufferList,StyleSheetList,TextTrackCueList,TextTrackList,TouchList".split(","),c=0;c<u.length;c++){var a=u[c],f=r[a],l=f&&f.prototype;l&&!l[s]&&o(l,s,a),i[a]=i.Array}},function(t,e){t.exports="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAADJUlEQVRoQ+2a/VEVMRTFz60ArQCsQK1A6AArECrQDoQOoAKhAu0AqECoQKhAO4hzmMBk9+XjJNl9C29e/mKGZDe/3HM/cvcZNmTYhnBgC5KypHPuDYD3APYTc64B3JnZvynVMIlFnHMfAHwBcASAIMq4B/ALwKWZ3SoLcnO6QJxz3PwJgL3OjRDqxMwuW5/TBOKco2x+TAAw3jeBjs2M8qsaVSBe/98BfKt6S/3kMwCnNX4kg3iIKwD0h3UM+s2BCiOBeGf+OYOUSgdCqX1WgkERxFvi9wIQT5CE+ViyTBZkATmlLFSUWQmETve1ZP81/f/czJJBJgniQyyd+yUNOn80NOdA/lT4xQ0AWo/5RbXgOQBuiqf8STytezN7F5sbBXHOsdRgwlMGSwzOfxziWia9i2AN/2aVoIzB2qcFKRDVGgMIESa6EeecChO1ygqIzxkMt6VxY2apCjdlmShEcACUmiIzhuNBoRkDUU+GiYrVa3KMZJaF8LI8BMDEWxorESwG8lcsxbPhcCQzhD6R2mWPvAYgPgESRB3FU1YfJAaJ8HFvw2w/BqHma3NHN0wDBIEGOWUMwksSy/Ta0QzTCMH9scznfh/HVCB8VjVMB8SsIFUwnRBbEMVnNkJa1RCjPKPWdeGBZp19Y8Ivm2uvPyH6eoetzB3BKZYsUR7MbNAUjNVa6vX2xReN7FspZfy1mR1kCsDY5axUxrM8Sl4NgneVy3gvL7ZgdgV5XZjZ8XheIdmlLlaMXM83zcy7V2S1UqI0hsQBjJixx1ddFSJZPeSaD6pV+HDe7OhbvBgpp8o1vMDxYsbmgyInrolaI2kRL6+WnCKosWtKfTvIw6gRrGt34uK2Bp0HYYKkbPgpbclxR/nl+r9qE5sdCyWKzQH7wE8ZXU3sIIoxt9Ax1w1DiMNJPisEMOuWWVFOofmL0gon+y4L78lqf7dVauwL8+Oo/Am7CiSwDkMz88DUUqOUjmb/GJooRWihXiAC0ALPje1aUzZZJALEYMCMzsyuQnHzDCAscZb9wUDs1LwfESz3E47bGv0r1pnEIsqL5p6zBZn7hGuf/x/5tYxCBjNscgAAAABJRU5ErkJggg=="},function(t,e){t.exports="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAER0lEQVRoQ+2ajVEUQRCFuyNQIxAiECIQIhAjkItAiECMQIlAiACMQC4CIQLvIhAiaOtt9Zx9s71787dbhWVXXVHA3u580697enqWqZGJyB4RvSWiA/3gd3ysrYgIn3v9LJkZv1cb19xBB/+BiE6dQafeGiBfieh7DVQRiIhg1j8qQOqAU667IqLPJUBZICLykoi+jACsiejWyMcbfJDeERG9HqAD0DkzP6bQ45pkEBGBfAABGGsYPKRxmzuTKs0TIjpzoACxYGZMzE5LAhGRb44XHgDAzJi9atOJunCA8IzzXQ8YBVEp3RARZBDsiYgumBleaG4iAu8A6IW5+R0RvR+T2iCIQvzQVBruCS+c5Eool1YlB0m9Md9Fyj4eghkDAYT1xDUzI05mMxGBbJHeg90x87E3ABfEiYkiCE3T7/TBWCcwq1nmwFwyM+S3ZT0QDToEd7BSCGQjxJc16DwpC9kvOTC9+2yBaFz8Min2gZmR97NNRJA+bcDiHo/M/Cr7ZkQkIvBmiBnce9/GSwxiNYnsdFAa2CIirpaZk1J+/F1NAIAJk7OllM1NVc8/zQ2wshan2AGPPDFzvKAmO0hTMxblYPBKV3RaEOuNYkmFJ4hIsxiJ4gUDD6XNxisdiLoNsREMpUH1iq1eBhAMJUx21nIkhiXAJqPOKwEEK+kn/dKameN9RLL757hQRKxXuhAIIPBGGHxVbMwEgnUkxMqKmffZkdUmgFoMSuVFLWRl4g+TbkOhA7GaayYrnSAsiGEdQnxgIWuytY3ktQAIUix2ezB3+S/xjIigYsUe3tpgrZT7jGi1vwSIfWCT+NAK4bc3OC5cEJ3sZRPUEiA20FEmA6zahlZ2LcWrnyEiqMxRocNWALGlxHMFof8gu7Q3s7T+LY/Y5f65xsh6kvQL2c0grV76tQti0bbWi5cZQOy2o1sQbYnSFWC7Ajnl/zOA2PWvK1H6BViDemhKEHfMqudefZ8y62PXTAxiy/iu0PU2Vk3kNTFIb/802VZ3KhCn7/Z3q6vyslngnpkPa+Q1IYj1xnbzQUGwAWrZDnL7WjXVb1I7yPEKunmHpTu6EY8UbaU1U2GiQ1/Mb9ApCC5CBgvdvGKJtW7QiQggwrYZXdC9wZapwsSNtStmXuTGS8sGnXM6MN7EDoON9vH4cykMZrCqQedApB0rGJi4eVAEk+tJe70DgRcM7OHT5vJdR2+AiY+/mrV0hiCdVhIuxbHfUfbRmwl+HMzYtg6yGQ5DL2tmewQCrSmU6LZrv9Szy8Fz96SzCidmus6FAl23ABIRnBUCIO47J/XakkBMNsPqH59CFb9LohLCGSOKwBgAKfY09aguGcRIDRsxe9JqHQIoxFX46TkLwYpBh5/eNfDy2SSvcETZBAOBDIaAStUGAMRfdn84yyPx6Ha8S5IKU/wui31AFYjjJcjFvngWv/2DQdsXz9DUzp59b4b+AJFTg4IAQeQDAAAAAElFTkSuQmCC"},function(t,e){t.exports="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAABiklEQVRoQ+3Y4VHDMAwF4PcmgBE6AiPABBwbMAKMwgSMwAjABh2hTABMYM53bi+kThzLlqP0nL+pXX+SHetEXMjDC3GgQ6xlsmekZ0QpAn1rKQVWPO2mMuKcuwZwD+BA8nOo3gzEOXcD4A3ALgBeSD4dMZuABMQ7AJ+R00PytH7zkCkEgC+Sx+zYLlFmEL8AbknuzW+tHITHmNxauQiTEAnCHESKMAUpQZiBlCJMQGogVofUQkQhoTDbDS8bcUk6M7Am4gzinHsE8Br+/wPAA8mf2pDaiBjke1SY+RLgriZGAxGD+OhfjTJQDaOFSG2toacYo4mYOuzDc1IFo42Y/PyODn0RpgVi9h6pgWmFSF6IJZiWiCTE/0CCaY1YBMnFrIFYDFmKWQuRBVmAeQ59p38tGwBnjYLaJU82JIGJra8JQgTJwDRDiCELME0RRZAZTHNEMSSCWQVRBRIwvlPu+7B7kgeNr1JqTpOdxtSiY+87RBI1zTE9I5rRlczdMyKJmuaYnhHN6Erm/gOnUwJCWY8N3gAAAABJRU5ErkJggg=="},function(t,e){t.exports="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAADbUlEQVRoQ+1Z0XXUMBDcqQBSAaQCkgpIKgAqIFQAVABUQFIBUAFJBSQVcFRAUgFJBcObe9Jh6yR7ZcsPXjj9OLmz7B3Nzmq0B7snA/cEh+2A/GtM7hj5rxgh+drMngfQ5wDOllqAxVKL5DczO0oCvwRwvASYRYCQfGNmHwsBvwLwuTWY5kBIPjSzn2amq8ZVuD4N11sz2wega7OxBJBTM5M2NO7M7HEAtTKzB+HzMwBirdloCoTkgZl970T3AcB7/U9S13ed7w4BCFyT0RpIV+A3AMTGZpC8NrNH4YOmwm8GhOSJmX3qxH0M4DIBoiomsHG8AHDegpImQILAlVKRgQsAcf/oxUlS4KLwxZBSbLbwWwFJ819V6ToAfBKQ/FDAJAVWVS2OjY7mMDMbSCmwIPyvHZa0+kqlVUb4a+B/G0hP4GZ2EFZeFSmyEWNcATgMTOn7ZsKfxQhJ6UCrviVekiys8F4Ams7dKg41DM0FolyPAr8CsPFWA0A2AafCB7BfE3z33slAxvLcCaS4gdYCmgQkCFzlNvqpLcvhAaJgSXYtjcqwynG18KcCkS7iPrH2U+leUAFEi6HAow/7AkCba9WoBkIy3Z2zttwLJLAy6grGUE0BUhR4YkdKVStbnRLhr8v0WPCTxZ45MBUdbIkRANnFyzD9FoD04xpuRjIHpsFcJikz+CyJoujBQorp5PgyzKk6gNUA6b4kK/AktSRizYlgLszsZMgghsWaJHwXkLm0u3Ij3FSTvtUaIak9Q5uXhlxs/LsmRve9JLs+zXUAG2XEc2ByR+i80Vvi3YzUCjyNM5jK2IjQ7u8+DSbFYlT4g4wk9kECl0V32YcMk8Lp7mkFG+TuvBSBDHVEPBlCUqsYbUeccgtgzzM/lOPsyTM3fwjIYEdkKJiQkr+yLyxsiKXneTsvpV129qGnwMgdgOiYXcQMHd4GxV7TERlhJdf/rbId8fmezssWI2MHJtcy/tnctN/ILYsF/awwqbPo6bz0gHgm1ABpee/YAqdAun7qJnZEWgY09VmZzkvPtKZAetbAzHotz6lBNJynNI0Njl6zIwWSs94N42j6qN6RIAUicYqFdCNrGkGDh8llHHWLR65qqU+lHbX3k0CDl7d6hNL/NLVKo+631duXfs4OyNIrXPv8HSO1K7b0/feGkd8QasVCy9vvvgAAAABJRU5ErkJggg=="},function(t,e){t.exports=function(t,e,n,r){var o,i=t=t||{},s=typeof t.default;"object"!==s&&"function"!==s||(o=t,i=t.default);var u="function"==typeof i?i.options:i;if(e&&(u.render=e.render,u.staticRenderFns=e.staticRenderFns),n&&(u._scopeId=n),r){var c=Object.create(u.computed||null);Object.keys(r).forEach(function(t){var e=r[t];c[t]=function(){return e}}),u.computed=c}return{esModule:o,exports:i,options:u}}},function(t,e,n){t.exports={render:function(){var t=this,e=t.$createElement,n=t._self._c||e;return n("transition",{attrs:{"enter-active-class":t.enterActiveClass,"leave-active-class":t.leaveActiveClass},on:{"before-enter":t.beforeEnter,"after-enter":t.afterEnter,"before-leave":t.beforeLeave}},[t.show?n("div",{staticClass:"toast",class:["toast-"+t.type],style:{backgroundColor:t.toastBackgroundColor}},[t.closeButton?n("button",{staticClass:"toast-close-button",attrs:{role:"button"},on:{click:t.hideToastr}},[t._v("×")]):t._e(),t._v(" "),t.progressBar?n("div",{staticClass:"toast-progress",style:"width: "+t.progress.percent+"%"}):t._e(),t._v(" "),n("div",{staticClass:"toast-icon"},[n("img",{attrs:{src:t.iconSrc}})]),t._v(" "),n("div",{staticClass:"toast-title"},[t._v(t._s(t.title))]),t._v(" "),t.useHtml?n("div",{staticClass:"toast-message",domProps:{innerHTML:t._s(t.message)}}):n("div",{staticClass:"toast-message",domProps:{textContent:t._s(t.message)}})]):t._e()])},staticRenderFns:[]},t.exports.render._withStripped=!0}])});
+//# sourceMappingURL=cxlt-vue2-toastr.js.map
+
+/***/ }),
+
 /***/ "./resources/sass/app.scss":
 /*!*********************************!*\
   !*** ./resources/sass/app.scss ***!
@@ -381,6 +2268,220 @@ module.exports = function (cssWithMappingToString) {
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 // extracted by mini-css-extract-plugin
+
+
+/***/ }),
+
+/***/ "./node_modules/process/browser.js":
+/*!*****************************************!*\
+  !*** ./node_modules/process/browser.js ***!
+  \*****************************************/
+/***/ ((module) => {
+
+// shim for using process in browser
+var process = module.exports = {};
+
+// cached from whatever global is present so that test runners that stub it
+// don't break things.  But we need to wrap it in a try catch in case it is
+// wrapped in strict mode code which doesn't define any globals.  It's inside a
+// function because try/catches deoptimize in certain engines.
+
+var cachedSetTimeout;
+var cachedClearTimeout;
+
+function defaultSetTimout() {
+    throw new Error('setTimeout has not been defined');
+}
+function defaultClearTimeout () {
+    throw new Error('clearTimeout has not been defined');
+}
+(function () {
+    try {
+        if (typeof setTimeout === 'function') {
+            cachedSetTimeout = setTimeout;
+        } else {
+            cachedSetTimeout = defaultSetTimout;
+        }
+    } catch (e) {
+        cachedSetTimeout = defaultSetTimout;
+    }
+    try {
+        if (typeof clearTimeout === 'function') {
+            cachedClearTimeout = clearTimeout;
+        } else {
+            cachedClearTimeout = defaultClearTimeout;
+        }
+    } catch (e) {
+        cachedClearTimeout = defaultClearTimeout;
+    }
+} ())
+function runTimeout(fun) {
+    if (cachedSetTimeout === setTimeout) {
+        //normal enviroments in sane situations
+        return setTimeout(fun, 0);
+    }
+    // if setTimeout wasn't available but was latter defined
+    if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
+        cachedSetTimeout = setTimeout;
+        return setTimeout(fun, 0);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedSetTimeout(fun, 0);
+    } catch(e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't trust the global object when called normally
+            return cachedSetTimeout.call(null, fun, 0);
+        } catch(e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error
+            return cachedSetTimeout.call(this, fun, 0);
+        }
+    }
+
+
+}
+function runClearTimeout(marker) {
+    if (cachedClearTimeout === clearTimeout) {
+        //normal enviroments in sane situations
+        return clearTimeout(marker);
+    }
+    // if clearTimeout wasn't available but was latter defined
+    if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
+        cachedClearTimeout = clearTimeout;
+        return clearTimeout(marker);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedClearTimeout(marker);
+    } catch (e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't  trust the global object when called normally
+            return cachedClearTimeout.call(null, marker);
+        } catch (e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error.
+            // Some versions of I.E. have different rules for clearTimeout vs setTimeout
+            return cachedClearTimeout.call(this, marker);
+        }
+    }
+
+
+
+}
+var queue = [];
+var draining = false;
+var currentQueue;
+var queueIndex = -1;
+
+function cleanUpNextTick() {
+    if (!draining || !currentQueue) {
+        return;
+    }
+    draining = false;
+    if (currentQueue.length) {
+        queue = currentQueue.concat(queue);
+    } else {
+        queueIndex = -1;
+    }
+    if (queue.length) {
+        drainQueue();
+    }
+}
+
+function drainQueue() {
+    if (draining) {
+        return;
+    }
+    var timeout = runTimeout(cleanUpNextTick);
+    draining = true;
+
+    var len = queue.length;
+    while(len) {
+        currentQueue = queue;
+        queue = [];
+        while (++queueIndex < len) {
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
+        }
+        queueIndex = -1;
+        len = queue.length;
+    }
+    currentQueue = null;
+    draining = false;
+    runClearTimeout(timeout);
+}
+
+process.nextTick = function (fun) {
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
+    if (queue.length === 1 && !draining) {
+        runTimeout(drainQueue);
+    }
+};
+
+// v8 likes predictible objects
+function Item(fun, array) {
+    this.fun = fun;
+    this.array = array;
+}
+Item.prototype.run = function () {
+    this.fun.apply(null, this.array);
+};
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+process.version = ''; // empty string to avoid regexp issues
+process.versions = {};
+
+function noop() {}
+
+process.on = noop;
+process.addListener = noop;
+process.once = noop;
+process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
+process.emit = noop;
+process.prependListener = noop;
+process.prependOnceListener = noop;
+
+process.listeners = function (name) { return [] }
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+};
+
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+process.umask = function() { return 0; };
+
+
+/***/ }),
+
+/***/ "./node_modules/vform/dist/vform.es.js":
+/*!*********************************************!*\
+  !*** ./node_modules/vform/dist/vform.es.js ***!
+  \*********************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__),
+/* harmony export */   "Errors": () => (/* binding */ y),
+/* harmony export */   "Form": () => (/* binding */ g)
+/* harmony export */ });
+/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! axios */ "./node_modules/axios/index.js");
+/* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(axios__WEBPACK_IMPORTED_MODULE_0__);
+var e=Object.defineProperty,t=Object.prototype.hasOwnProperty,r=Object.getOwnPropertySymbols,s=Object.prototype.propertyIsEnumerable,o=(t,r,s)=>r in t?e(t,r,{enumerable:!0,configurable:!0,writable:!0,value:s}):t[r]=s,a=(e,a)=>{for(var i in a||(a={}))t.call(a,i)&&o(e,i,a[i]);if(r)for(var i of r(a))s.call(a,i)&&o(e,i,a[i]);return e};const n=e=>void 0===e,l=e=>Array.isArray(e),c=e=>e&&"number"==typeof e.size&&"string"==typeof e.type&&"function"==typeof e.slice,h=(e,t,r,s)=>((t=t||{}).indices=!n(t.indices)&&t.indices,t.nullsAsUndefineds=!n(t.nullsAsUndefineds)&&t.nullsAsUndefineds,t.booleansAsIntegers=!n(t.booleansAsIntegers)&&t.booleansAsIntegers,t.allowEmptyArrays=!n(t.allowEmptyArrays)&&t.allowEmptyArrays,r=r||new FormData,n(e)||(null===e?t.nullsAsUndefineds||r.append(s,""):(e=>"boolean"==typeof e)(e)?t.booleansAsIntegers?r.append(s,e?1:0):r.append(s,e):l(e)?e.length?e.forEach(((e,o)=>{const a=s+"["+(t.indices?o:"")+"]";h(e,t,r,a)})):t.allowEmptyArrays&&r.append(s+"[]",""):(e=>e instanceof Date)(e)?r.append(s,e.toISOString()):!(e=>e===Object(e))(e)||(e=>c(e)&&"string"==typeof e.name&&("object"==typeof e.lastModifiedDate||"number"==typeof e.lastModified))(e)||c(e)?r.append(s,e):Object.keys(e).forEach((o=>{const a=e[o];if(l(a))for(;o.length>2&&o.lastIndexOf("[]")===o.length-2;)o=o.substring(0,o.length-2);h(a,t,r,s?s+"["+o+"]":o)}))),r);var u={serialize:h};function d(e){if(null===e||"object"!=typeof e)return e;const t=Array.isArray(e)?[]:{};return Object.keys(e).forEach((r=>{t[r]=d(e[r])})),t}function p(e){return Array.isArray(e)?e:[e]}function f(e){return e instanceof File||e instanceof Blob||e instanceof FileList||"object"==typeof e&&null!==e&&void 0!==Object.values(e).find((e=>f(e)))}class y{constructor(){this.errors={},this.errors={}}set(e,t){"object"==typeof e?this.errors=e:this.set(a(a({},this.errors),{[e]:p(t)}))}all(){return this.errors}has(e){return Object.prototype.hasOwnProperty.call(this.errors,e)}hasAny(...e){return e.some((e=>this.has(e)))}any(){return Object.keys(this.errors).length>0}get(e){if(this.has(e))return this.getAll(e)[0]}getAll(e){return p(this.errors[e]||[])}only(...e){const t=[];return e.forEach((e=>{const r=this.get(e);r&&t.push(r)})),t}flatten(){return Object.values(this.errors).reduce(((e,t)=>e.concat(t)),[])}clear(e){const t={};e&&Object.keys(this.errors).forEach((r=>{r!==e&&(t[r]=this.errors[r])})),this.set(t)}}class g{constructor(e={}){this.originalData={},this.busy=!1,this.successful=!1,this.errors=new y,this.progress=void 0,this.update(e)}static make(e){return new this(e)}update(e){this.originalData=Object.assign({},this.originalData,d(e)),Object.assign(this,e)}fill(e={}){this.keys().forEach((t=>{this[t]=e[t]}))}data(){return this.keys().reduce(((e,t)=>a(a({},e),{[t]:this[t]})),{})}keys(){return Object.keys(this).filter((e=>!g.ignore.includes(e)))}startProcessing(){this.errors.clear(),this.busy=!0,this.successful=!1,this.progress=void 0}finishProcessing(){this.busy=!1,this.successful=!0,this.progress=void 0}clear(){this.errors.clear(),this.successful=!1,this.progress=void 0}reset(){Object.keys(this).filter((e=>!g.ignore.includes(e))).forEach((e=>{this[e]=d(this.originalData[e])}))}get(e,t={}){return this.submit("get",e,t)}post(e,t={}){return this.submit("post",e,t)}patch(e,t={}){return this.submit("patch",e,t)}put(e,t={}){return this.submit("put",e,t)}delete(e,t={}){return this.submit("delete",e,t)}submit(e,t,r={}){return this.startProcessing(),r=a({data:{},params:{},url:this.route(t),method:e,onUploadProgress:this.handleUploadProgress.bind(this)},r),"get"===e.toLowerCase()?r.params=a(a({},this.data()),r.params):(r.data=a(a({},this.data()),r.data),f(r.data)&&(r.transformRequest=[e=>u.serialize(e)])),new Promise(((e,t)=>{(g.axios||(axios__WEBPACK_IMPORTED_MODULE_0___default())).request(r).then((t=>{this.finishProcessing(),e(t)})).catch((e=>{this.handleErrors(e),t(e)}))}))}handleErrors(e){this.busy=!1,this.progress=void 0,e.response&&this.errors.set(this.extractErrors(e.response))}extractErrors(e){return e.data&&"object"==typeof e.data?e.data.errors?a({},e.data.errors):e.data.message?{error:e.data.message}:a({},e.data):{error:g.errorMessage}}handleUploadProgress(e){this.progress={total:e.total,loaded:e.loaded,percentage:Math.round(100*e.loaded/e.total)}}route(e,t={}){let r=e;return Object.prototype.hasOwnProperty.call(g.routes,e)&&(r=decodeURI(g.routes[e])),"object"!=typeof t&&(t={id:t}),Object.keys(t).forEach((e=>{r=r.replace(`{${e}}`,t[e])})),r}onKeydown(e){const t=e.target;t.name&&this.errors.clear(t.name)}}g.routes={},g.errorMessage="Something went wrong. Please try again.",g.ignore=["busy","successful","errors","progress","originalData"];/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (g);
 
 
 /***/ }),
@@ -476,17 +2577,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var _index_vue_vue_type_template_id_6d07bcac_scoped_true___WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./index.vue?vue&type=template&id=6d07bcac&scoped=true& */ "./resources/js/pages/category/index.vue?vue&type=template&id=6d07bcac&scoped=true&");
 /* harmony import */ var _index_vue_vue_type_script_lang_js___WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./index.vue?vue&type=script&lang=js& */ "./resources/js/pages/category/index.vue?vue&type=script&lang=js&");
-/* harmony import */ var _index_vue_vue_type_style_index_0_id_6d07bcac_lang_scss_scoped_true___WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./index.vue?vue&type=style&index=0&id=6d07bcac&lang=scss&scoped=true& */ "./resources/js/pages/category/index.vue?vue&type=style&index=0&id=6d07bcac&lang=scss&scoped=true&");
-/* harmony import */ var _node_modules_vue_loader_lib_runtime_componentNormalizer_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! !../../../../node_modules/vue-loader/lib/runtime/componentNormalizer.js */ "./node_modules/vue-loader/lib/runtime/componentNormalizer.js");
+/* harmony import */ var _node_modules_vue_loader_lib_runtime_componentNormalizer_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! !../../../../node_modules/vue-loader/lib/runtime/componentNormalizer.js */ "./node_modules/vue-loader/lib/runtime/componentNormalizer.js");
 
 
 
-;
 
 
 /* normalize component */
-
-var component = (0,_node_modules_vue_loader_lib_runtime_componentNormalizer_js__WEBPACK_IMPORTED_MODULE_3__.default)(
+;
+var component = (0,_node_modules_vue_loader_lib_runtime_componentNormalizer_js__WEBPACK_IMPORTED_MODULE_2__.default)(
   _index_vue_vue_type_script_lang_js___WEBPACK_IMPORTED_MODULE_1__.default,
   _index_vue_vue_type_template_id_6d07bcac_scoped_true___WEBPACK_IMPORTED_MODULE_0__.render,
   _index_vue_vue_type_template_id_6d07bcac_scoped_true___WEBPACK_IMPORTED_MODULE_0__.staticRenderFns,
@@ -675,23 +2774,6 @@ __webpack_require__.r(__webpack_exports__);
 
 /***/ }),
 
-/***/ "./resources/js/pages/category/index.vue?vue&type=style&index=0&id=6d07bcac&lang=scss&scoped=true&":
-/*!*********************************************************************************************************!*\
-  !*** ./resources/js/pages/category/index.vue?vue&type=style&index=0&id=6d07bcac&lang=scss&scoped=true& ***!
-  \*********************************************************************************************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony import */ var _node_modules_vue_style_loader_index_js_node_modules_css_loader_dist_cjs_js_clonedRuleSet_12_0_rules_0_use_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_dist_cjs_js_clonedRuleSet_12_0_rules_0_use_2_node_modules_sass_loader_dist_cjs_js_clonedRuleSet_12_0_rules_0_use_3_node_modules_vue_loader_lib_index_js_vue_loader_options_index_vue_vue_type_style_index_0_id_6d07bcac_lang_scss_scoped_true___WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! -!../../../../node_modules/vue-style-loader/index.js!../../../../node_modules/css-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[1]!../../../../node_modules/vue-loader/lib/loaders/stylePostLoader.js!../../../../node_modules/postcss-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[2]!../../../../node_modules/sass-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[3]!../../../../node_modules/vue-loader/lib/index.js??vue-loader-options!./index.vue?vue&type=style&index=0&id=6d07bcac&lang=scss&scoped=true& */ "./node_modules/vue-style-loader/index.js!./node_modules/css-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[1]!./node_modules/vue-loader/lib/loaders/stylePostLoader.js!./node_modules/postcss-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[2]!./node_modules/sass-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[3]!./node_modules/vue-loader/lib/index.js??vue-loader-options!./resources/js/pages/category/index.vue?vue&type=style&index=0&id=6d07bcac&lang=scss&scoped=true&");
-/* harmony import */ var _node_modules_vue_style_loader_index_js_node_modules_css_loader_dist_cjs_js_clonedRuleSet_12_0_rules_0_use_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_dist_cjs_js_clonedRuleSet_12_0_rules_0_use_2_node_modules_sass_loader_dist_cjs_js_clonedRuleSet_12_0_rules_0_use_3_node_modules_vue_loader_lib_index_js_vue_loader_options_index_vue_vue_type_style_index_0_id_6d07bcac_lang_scss_scoped_true___WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_node_modules_vue_style_loader_index_js_node_modules_css_loader_dist_cjs_js_clonedRuleSet_12_0_rules_0_use_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_dist_cjs_js_clonedRuleSet_12_0_rules_0_use_2_node_modules_sass_loader_dist_cjs_js_clonedRuleSet_12_0_rules_0_use_3_node_modules_vue_loader_lib_index_js_vue_loader_options_index_vue_vue_type_style_index_0_id_6d07bcac_lang_scss_scoped_true___WEBPACK_IMPORTED_MODULE_0__);
-/* harmony reexport (unknown) */ var __WEBPACK_REEXPORT_OBJECT__ = {};
-/* harmony reexport (unknown) */ for(const __WEBPACK_IMPORT_KEY__ in _node_modules_vue_style_loader_index_js_node_modules_css_loader_dist_cjs_js_clonedRuleSet_12_0_rules_0_use_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_dist_cjs_js_clonedRuleSet_12_0_rules_0_use_2_node_modules_sass_loader_dist_cjs_js_clonedRuleSet_12_0_rules_0_use_3_node_modules_vue_loader_lib_index_js_vue_loader_options_index_vue_vue_type_style_index_0_id_6d07bcac_lang_scss_scoped_true___WEBPACK_IMPORTED_MODULE_0__) if(__WEBPACK_IMPORT_KEY__ !== "default") __WEBPACK_REEXPORT_OBJECT__[__WEBPACK_IMPORT_KEY__] = () => _node_modules_vue_style_loader_index_js_node_modules_css_loader_dist_cjs_js_clonedRuleSet_12_0_rules_0_use_1_node_modules_vue_loader_lib_loaders_stylePostLoader_js_node_modules_postcss_loader_dist_cjs_js_clonedRuleSet_12_0_rules_0_use_2_node_modules_sass_loader_dist_cjs_js_clonedRuleSet_12_0_rules_0_use_3_node_modules_vue_loader_lib_index_js_vue_loader_options_index_vue_vue_type_style_index_0_id_6d07bcac_lang_scss_scoped_true___WEBPACK_IMPORTED_MODULE_0__[__WEBPACK_IMPORT_KEY__]
-/* harmony reexport (unknown) */ __webpack_require__.d(__webpack_exports__, __WEBPACK_REEXPORT_OBJECT__);
-
-
-/***/ }),
-
 /***/ "./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/vue-loader/lib/index.js??vue-loader-options!./resources/js/components/Header.vue?vue&type=template&id=1f42fb90&":
 /*!******************************************************************************************************************************************************************************************************************!*\
   !*** ./node_modules/vue-loader/lib/loaders/templateLoader.js??vue-loader-options!./node_modules/vue-loader/lib/index.js??vue-loader-options!./resources/js/components/Header.vue?vue&type=template&id=1f42fb90& ***!
@@ -817,22 +2899,30 @@ var render = function() {
               {
                 name: "model",
                 rawName: "v-model",
-                value: _vm.categoryName,
-                expression: "categoryName"
+                value: _vm.categoryForm.name,
+                expression: "categoryForm.name"
               }
             ],
             staticClass: "w-full border p-2",
             attrs: { type: "text", name: "name", placeholder: "category name" },
-            domProps: { value: _vm.categoryName },
+            domProps: { value: _vm.categoryForm.name },
             on: {
               input: function($event) {
                 if ($event.target.composing) {
                   return
                 }
-                _vm.categoryName = $event.target.value
+                _vm.$set(_vm.categoryForm, "name", $event.target.value)
               }
             }
-          })
+          }),
+          _vm._v(" "),
+          _vm.categoryForm.errors.has("name")
+            ? _c("div", {
+                domProps: {
+                  innerHTML: _vm._s(_vm.categoryForm.errors.get("name"))
+                }
+              })
+            : _vm._e()
         ]),
         _vm._v(" "),
         _vm._m(0)
@@ -888,7 +2978,25 @@ var render = function() {
       1
     ),
     _vm._v(" "),
-    _vm._m(0)
+    _c("table", { staticClass: "table-fixed" }, [
+      _vm._m(0),
+      _vm._v(" "),
+      _c(
+        "tbody",
+        _vm._l(_vm.categories, function(category) {
+          return _c("tr", { key: category.id }, [
+            _c("td", [_vm._v(_vm._s(category.id))]),
+            _vm._v(" "),
+            _c("td", [_vm._v(_vm._s(category.name))]),
+            _vm._v(" "),
+            _c("td", [_vm._v(_vm._s(category.slug))]),
+            _vm._v(" "),
+            _vm._m(1, true)
+          ])
+        }),
+        0
+      )
+    ])
   ])
 }
 var staticRenderFns = [
@@ -896,57 +3004,29 @@ var staticRenderFns = [
     var _vm = this
     var _h = _vm.$createElement
     var _c = _vm._self._c || _h
-    return _c("table", { staticClass: "table-fixed" }, [
-      _c("thead", [
-        _c("tr", [
-          _c("th", { staticClass: "w-1/4 ..." }, [_vm._v("Id")]),
-          _vm._v(" "),
-          _c("th", { staticClass: "w-1/4 ..." }, [_vm._v("Name")]),
-          _vm._v(" "),
-          _c("th", { staticClass: "w-1/4 ..." }, [_vm._v("Slug")]),
-          _vm._v(" "),
-          _c("th", { staticClass: "w-1/4 ..." }, [_vm._v("Action")])
-        ])
+    return _c("thead", [
+      _c("tr", [
+        _c("th", { staticClass: "w-1/4 ..." }, [_vm._v("Id")]),
+        _vm._v(" "),
+        _c("th", { staticClass: "w-1/4 ..." }, [_vm._v("Name")]),
+        _vm._v(" "),
+        _c("th", { staticClass: "w-1/4 ..." }, [_vm._v("Slug")]),
+        _vm._v(" "),
+        _c("th", { staticClass: "w-1/4 ..." }, [_vm._v("Action")])
+      ])
+    ])
+  },
+  function() {
+    var _vm = this
+    var _h = _vm.$createElement
+    var _c = _vm._self._c || _h
+    return _c("td", [
+      _c("a", { staticClass: "btn btn-edit", attrs: { href: "#" } }, [
+        _vm._v("Edit")
       ]),
       _vm._v(" "),
-      _c("tbody", [
-        _c("tr", [
-          _c("td", [_vm._v("1")]),
-          _vm._v(" "),
-          _c("td", [_vm._v("Fashion")]),
-          _vm._v(" "),
-          _c("td", [_vm._v("fashion")]),
-          _vm._v(" "),
-          _c("td", [
-            _c("a", { staticClass: "btn btn-edit", attrs: { href: "#" } }, [
-              _vm._v("Edit")
-            ]),
-            _vm._v(" "),
-            _c("a", { staticClass: "btn btn-delete", attrs: { href: "#" } }, [
-              _vm._v("Delete")
-            ])
-          ])
-        ]),
-        _vm._v(" "),
-        _c("tr", { staticClass: "bg-blue-200" }, [
-          _c("td", [
-            _vm._v(
-              "A Long and Winding Tour of the History of UI Frameworks and Tools and the Impact on Design"
-            )
-          ]),
-          _vm._v(" "),
-          _c("td", [_vm._v("Adam")]),
-          _vm._v(" "),
-          _c("td", [_vm._v("112")])
-        ]),
-        _vm._v(" "),
-        _c("tr", [
-          _c("td", [_vm._v("Intro to JavaScript")]),
-          _vm._v(" "),
-          _c("td", [_vm._v("Chris")]),
-          _vm._v(" "),
-          _c("td", [_vm._v("1,280")])
-        ])
+      _c("a", { staticClass: "btn btn-delete", attrs: { href: "#" } }, [
+        _vm._v("Delete")
       ])
     ])
   }
@@ -4271,22 +6351,22 @@ if (inBrowser && window.Vue) {
 
 /***/ }),
 
-/***/ "./node_modules/vue-style-loader/index.js!./node_modules/css-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[1]!./node_modules/vue-loader/lib/loaders/stylePostLoader.js!./node_modules/postcss-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[2]!./node_modules/sass-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[3]!./node_modules/vue-loader/lib/index.js??vue-loader-options!./resources/js/pages/category/index.vue?vue&type=style&index=0&id=6d07bcac&lang=scss&scoped=true&":
-/*!************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** ./node_modules/vue-style-loader/index.js!./node_modules/css-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[1]!./node_modules/vue-loader/lib/loaders/stylePostLoader.js!./node_modules/postcss-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[2]!./node_modules/sass-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[3]!./node_modules/vue-loader/lib/index.js??vue-loader-options!./resources/js/pages/category/index.vue?vue&type=style&index=0&id=6d07bcac&lang=scss&scoped=true& ***!
-  \************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/***/ "./node_modules/cxlt-vue2-toastr/dist/css/cxlt-vue2-toastr.css":
+/*!*********************************************************************!*\
+  !*** ./node_modules/cxlt-vue2-toastr/dist/css/cxlt-vue2-toastr.css ***!
+  \*********************************************************************/
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 // style-loader: Adds some css to the DOM by adding a <style> tag
 
 // load the styles
-var content = __webpack_require__(/*! !!../../../../node_modules/css-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[1]!../../../../node_modules/vue-loader/lib/loaders/stylePostLoader.js!../../../../node_modules/postcss-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[2]!../../../../node_modules/sass-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[3]!../../../../node_modules/vue-loader/lib/index.js??vue-loader-options!./index.vue?vue&type=style&index=0&id=6d07bcac&lang=scss&scoped=true& */ "./node_modules/css-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[1]!./node_modules/vue-loader/lib/loaders/stylePostLoader.js!./node_modules/postcss-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[2]!./node_modules/sass-loader/dist/cjs.js??clonedRuleSet-12[0].rules[0].use[3]!./node_modules/vue-loader/lib/index.js??vue-loader-options!./resources/js/pages/category/index.vue?vue&type=style&index=0&id=6d07bcac&lang=scss&scoped=true&");
+var content = __webpack_require__(/*! !!../../../css-loader/dist/cjs.js??clonedRuleSet-9[0].rules[0].use[1]!../../../postcss-loader/dist/cjs.js??clonedRuleSet-9[0].rules[0].use[2]!./cxlt-vue2-toastr.css */ "./node_modules/css-loader/dist/cjs.js??clonedRuleSet-9[0].rules[0].use[1]!./node_modules/postcss-loader/dist/cjs.js??clonedRuleSet-9[0].rules[0].use[2]!./node_modules/cxlt-vue2-toastr/dist/css/cxlt-vue2-toastr.css");
 if(content.__esModule) content = content.default;
 if(typeof content === 'string') content = [[module.id, content, '']];
 if(content.locals) module.exports = content.locals;
 // add the styles to the DOM
-var add = __webpack_require__(/*! !../../../../node_modules/vue-style-loader/lib/addStylesClient.js */ "./node_modules/vue-style-loader/lib/addStylesClient.js").default
-var update = add("52e06265", content, false, {});
+var add = __webpack_require__(/*! !../../../vue-style-loader/lib/addStylesClient.js */ "./node_modules/vue-style-loader/lib/addStylesClient.js").default
+var update = add("75fb8d07", content, false, {});
 // Hot Module Replacement
 if(false) {}
 
@@ -16608,7 +18688,7 @@ Vue.compile = compileToFunctions;
 /******/ 		};
 /******/ 	
 /******/ 		// Execute the module function
-/******/ 		__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+/******/ 		__webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);
 /******/ 	
 /******/ 		// Return the exports of the module
 /******/ 		return module.exports;
