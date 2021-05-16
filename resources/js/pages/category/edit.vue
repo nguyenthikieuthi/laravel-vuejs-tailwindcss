@@ -58,6 +58,7 @@ export default {
 
         loadCategory() {
             let id = this.$route.params.id;
+            console.log(id);
 
             axios.get(`/api/category/${id}/edit`).then(response => {
                 console.log(response);

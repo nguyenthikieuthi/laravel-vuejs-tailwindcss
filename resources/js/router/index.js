@@ -30,7 +30,7 @@ const router = new VueRouter({
         },
 
         {
-            path: "/category/edit/:slug",
+            path: "/category/edit/:id/:slug",
             component: EditCategory,
             name: "edit-category"
         }

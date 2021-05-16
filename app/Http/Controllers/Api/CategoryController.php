@@ -73,6 +73,7 @@ class CategoryController extends Controller
     {
 
         // $category = Category::findOrFail($id);
+        // dd($id);
         // $category = Category::find($id);
         // return response()->json($category);
 

@@ -1953,6 +1953,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! axios */ "./node_modules/axios/index.js");
 /* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(axios__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var vform__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! vform */ "./node_modules/vform/dist/vform.es.js");
+function _objectDestructuringEmpty(obj) { if (obj == null) throw new TypeError("Cannot destructure undefined"); }
+
+//
+//
 //
 //
 //
@@ -1996,22 +2000,23 @@ __webpack_require__.r(__webpack_exports__);
     };
   },
   methods: {
-    createCategory: function createCategory() {
+    updateCategory: function updateCategory() {
       var _this = this;
 
-      this.categoryForm.post("/api/category").then(function (_ref) {
-        var data = _ref.data;
-        _this.categoryForm.name = "";
+      var id = this.$route.params.id;
+      this.categoryForm.put("/api/category/".concat(id)).then(function (_ref) {
+        _objectDestructuringEmpty(_ref);
 
         _this.$toast.success({
           title: "Succes!",
-          message: "Category created successfully."
+          message: "Category update successfully."
         });
       });
     },
     loadCategory: function loadCategory() {
       var id = this.$route.params.id;
-      axios__WEBPACK_IMPORTED_MODULE_0___default().get("/api/category/${id}/edit").then(function (response) {
+      console.log(id);
+      axios__WEBPACK_IMPORTED_MODULE_0___default().get("/api/category/".concat(id, "/edit")).then(function (response) {
         console.log(response);
       });
     }
@@ -2036,6 +2041,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! axios */ "./node_modules/axios/index.js");
 /* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(axios__WEBPACK_IMPORTED_MODULE_0__);
+//
+//
+//
 //
 //
 //
@@ -2231,7 +2239,7 @@ var router = new vue_router__WEBPACK_IMPORTED_MODULE_1__.default({
     component: _pages_category_create_vue__WEBPACK_IMPORTED_MODULE_4__.default,
     name: "create-category"
   }, {
-    path: "/category/edit:slug",
+    path: "/category/edit/:id/:slug",
     component: _pages_category_edit_vue__WEBPACK_IMPORTED_MODULE_5__.default,
     name: "edit-category"
   }]
@@ -3156,7 +3164,11 @@ var render = function() {
       { staticClass: "flex justify-between pb-8" },
       [
         _c("div", { staticClass: "text-xl font-bold" }, [
-          _vm._v("Edit Category")
+          _vm._v(
+            "\n            Edit Category - " +
+              _vm._s(_vm.categoryForm.name) +
+              "\n        "
+          )
         ]),
         _vm._v(" "),
         _c("router-link", { attrs: { to: { name: "category-list" } } }, [
@@ -3172,7 +3184,7 @@ var render = function() {
         on: {
           submit: function($event) {
             $event.preventDefault()
-            return _vm.createCategory($event)
+            return _vm.updateCategory($event)
           }
         }
       },
@@ -3222,7 +3234,7 @@ var staticRenderFns = [
     var _h = _vm.$createElement
     var _c = _vm._self._c || _h
     return _c("div", { staticClass: "float-right" }, [
-      _c("button", { attrs: { type: "submit" } }, [_vm._v("Create Category")])
+      _c("button", { attrs: { type: "submit" } }, [_vm._v("Update Category")])
     ])
   }
 ]
@@ -3289,7 +3301,10 @@ var render = function() {
                       attrs: {
                         to: {
                           name: "edit-category",
-                          params: { slug: category.slug }
+                          params: {
+                            id: category.id,
+                            slug: category.slug
+                          }
                         }
                       }
                     },

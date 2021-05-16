@@ -25,7 +25,10 @@
                             <router-link
                                 :to="{
                                     name: 'edit-category',
-                                    params: { slug: category.slug }
+                                    params: {
+                                        id: category.id,
+                                        slug: category.slug
+                                    }
                                 }"
                                 class="btn btn-edit bg-blue-600 text-white"
                                 >Edit</router-link
