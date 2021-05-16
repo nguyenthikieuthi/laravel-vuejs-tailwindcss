@@ -71,7 +71,16 @@ class CategoryController extends Controller
      */
     public function edit(Category $category)
     {
-        //
+
+        // $category = Category::findOrFail($id);
+        // $category = Category::find($id);
+        // return response()->json($category);
+
+        if($category){
+            return response()->json($category, 200);
+        }else {
+            return response()->json('failed', 404);
+        }
     }
 
     /**

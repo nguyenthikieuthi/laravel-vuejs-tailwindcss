@@ -1,31 +1,39 @@
-import Vue from 'vue'
-import VueRouter from 'vue-router'
+import Vue from "vue";
+import VueRouter from "vue-router";
 
-Vue.use(VueRouter)
+Vue.use(VueRouter);
 
-import Home from '../pages/home.vue'
-import CategoryList from '../pages/category/index.vue'
-import CreateCategory from '../pages/category/create.vue'
+import Home from "../pages/home.vue";
+import CategoryList from "../pages/category/index.vue";
+import CreateCategory from "../pages/category/create.vue";
+import EditCategory from "../pages/category/edit.vue";
 
 const router = new VueRouter({
-    mode: 'history',
+    mode: "history",
     routes: [
-        {   
-            path: '/', 
-            component: Home , 
-            name: 'home'
+        {
+            path: "/",
+            component: Home,
+            name: "home"
         },
 
-        {   
-            path: '/category', 
-            component: CategoryList , 
-            name: 'category-list'
+        {
+            path: "/category",
+            component: CategoryList,
+            name: "category-list"
         },
 
-        {   path: '/category/create', 
-            component: CreateCategory , 
-            name: 'create-category'
+        {
+            path: "/category/create",
+            component: CreateCategory,
+            name: "create-category"
         },
+
+        {
+            path: "/category/edit/:slug",
+            component: EditCategory,
+            name: "edit-category"
+        }
     ]
 });
 
