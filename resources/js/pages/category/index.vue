@@ -35,7 +35,7 @@
                             >
                         </button>
                         <button class="bg-red-600 w-32 p-2 rounded-full">
-                            <a href="#" class="btn btn-edit  text-white"
+                            <a @click.prevent="deleteCategory(category)" href="#" class="btn btn-edit  text-white"
                                 >Delete</a
                             >
                         </button>
@@ -72,6 +72,18 @@ export default {
             axios.get("/api/category").then(response => {
                 this.categories = response.data;
             });
+        },
+
+        deleteCategory(category) {
+            axios.delete(`/api/category/${category.id}`).then(() => {
+                     this.$toast.success({
+                    title: "Succes!",
+                    message: "Category deleted successfully."
+                });
+
+                let index = this.categories.indexOf(category);
+                this.categories.splice(index, 1);
+            })
         }
     },
 

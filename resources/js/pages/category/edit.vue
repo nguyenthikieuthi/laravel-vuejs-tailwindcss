@@ -40,7 +40,7 @@ export default {
     data() {
         return {
             categoryForm: new Form({
-                name: ""
+                name: '',
             })
         };
     },
@@ -58,10 +58,9 @@ export default {
 
         loadCategory() {
             let id = this.$route.params.id;
-            console.log(id);
 
             axios.get(`/api/category/${id}/edit`).then(response => {
-                console.log(response);
+                this.categoryForm.name = response.data.name;
             });
         }
     },

@@ -1995,7 +1995,7 @@ function _objectDestructuringEmpty(obj) { if (obj == null) throw new TypeError("
   data: function data() {
     return {
       categoryForm: new vform__WEBPACK_IMPORTED_MODULE_1__.default({
-        name: ""
+        name: ''
       })
     };
   },
@@ -2014,10 +2014,11 @@ function _objectDestructuringEmpty(obj) { if (obj == null) throw new TypeError("
       });
     },
     loadCategory: function loadCategory() {
+      var _this2 = this;
+
       var id = this.$route.params.id;
-      console.log(id);
       axios__WEBPACK_IMPORTED_MODULE_0___default().get("/api/category/".concat(id, "/edit")).then(function (response) {
-        console.log(response);
+        _this2.categoryForm.name = response.data.name;
       });
     }
   },
@@ -2111,6 +2112,20 @@ __webpack_require__.r(__webpack_exports__);
 
       axios__WEBPACK_IMPORTED_MODULE_0___default().get("/api/category").then(function (response) {
         _this.categories = response.data;
+      });
+    },
+    deleteCategory: function deleteCategory(category) {
+      var _this2 = this;
+
+      axios__WEBPACK_IMPORTED_MODULE_0___default().delete("/api/category/".concat(category.id)).then(function () {
+        _this2.$toast.success({
+          title: "Succes!",
+          message: "Category deleted successfully."
+        });
+
+        var index = _this2.categories.indexOf(category);
+
+        _this2.categories.splice(index, 1);
       });
     }
   },
@@ -3314,7 +3329,26 @@ var render = function() {
                 1
               ),
               _vm._v(" "),
-              _vm._m(1, true)
+              _c(
+                "button",
+                { staticClass: "bg-red-600 w-32 p-2 rounded-full" },
+                [
+                  _c(
+                    "a",
+                    {
+                      staticClass: "btn btn-edit  text-white",
+                      attrs: { href: "#" },
+                      on: {
+                        click: function($event) {
+                          $event.preventDefault()
+                          return _vm.deleteCategory(category)
+                        }
+                      }
+                    },
+                    [_vm._v("Delete")]
+                  )
+                ]
+              )
             ])
           ])
         }),
@@ -3338,18 +3372,6 @@ var staticRenderFns = [
         _vm._v(" "),
         _c("th", { staticClass: "w-1/4 ..." }, [_vm._v("Action")])
       ])
-    ])
-  },
-  function() {
-    var _vm = this
-    var _h = _vm.$createElement
-    var _c = _vm._self._c || _h
-    return _c("button", { staticClass: "bg-red-600 w-32 p-2 rounded-full" }, [
-      _c(
-        "a",
-        { staticClass: "btn btn-edit  text-white", attrs: { href: "#" } },
-        [_vm._v("Delete")]
-      )
     ])
   }
 ]
