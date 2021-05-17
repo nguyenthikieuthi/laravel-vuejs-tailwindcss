@@ -2,7 +2,7 @@
     <div class="container">
         <div class="flex justify-between pb-8">
             <div class="text-xl font-bold">
-                Edit Category - {{ categoryForm.name }}
+                Edit Product - {{ categoryForm.name }}
             </div>
             <router-link :to="{ name: 'category-list' }"
                 >Category list</router-link

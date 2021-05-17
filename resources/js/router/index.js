@@ -8,8 +8,13 @@ import CategoryList from "../pages/category/index.vue";
 import CreateCategory from "../pages/category/create.vue";
 import EditCategory from "../pages/category/edit.vue";
 
+import ProductList from "../pages/product/index.vue";
+import CreateProduct from "../pages/product/create.vue";
+import EditProduct from "../pages/product/edit.vue";
+
 const router = new VueRouter({
     mode: "history",
+    linkExactActiveClass: "active",
     routes: [
         {
             path: "/",
@@ -33,6 +38,23 @@ const router = new VueRouter({
             path: "/category/edit/:id/:slug",
             component: EditCategory,
             name: "edit-category"
+        },
+        {
+            path: "/product",
+            component: ProductList,
+            name: "product-list"
+        },
+
+        {
+            path: "/product/create",
+            component: CreateProduct,
+            name: "create-product"
+        },
+
+        {
+            path: "/category/edit/:id/:slug",
+            component: EditProduct,
+            name: "edit-product"
         }
     ]
 });

@@ -1,14 +1,12 @@
 <template>
     <div class="container">
         <div class="flex justify-between pb-8">
-            <div class="text-xl font-bold">
-                Edit Category - {{ categoryForm.name }}
-            </div>
+            <div class="text-xl font-bold">Product Category</div>
             <router-link :to="{ name: 'category-list' }"
-                >Category list</router-link
+                >Product list</router-link
             >
         </div>
-        <form @submit.prevent="updateCategory">
+        <form @submit.prevent="createCategory">
             <div class="flex items-center mb-4">
                 <div class="w-1/4">Category name</div>
 
@@ -26,7 +24,7 @@
                 />
             </div>
             <div class="float-right">
-                <button type="submit">Update Category</button>
+                <button type="submit">Create Product</button>
             </div>
         </form>
     </div>
@@ -45,27 +43,16 @@ export default {
         };
     },
     methods: {
-        updateCategory() {
-            let id = this.$route.params.id;
+        createCategory() {
+            this.categoryForm.post("/api/category").then(({ data }) => {
+                this.categoryForm.name = "";
 
-            this.categoryForm.put(`/api/category/${id}`).then(({}) => {
                 this.$toast.success({
                     title: "Succes!",
-                    message: "Category update successfully."
+                    message: "Category created successfully."
                 });
             });
-        },
-
-        loadCategory() {
-            let id = this.$route.params.id;
-
-            axios.get(`/api/category/${id}/edit`).then(response => {
-                this.categoryForm.name = response.data.name;
-            });
         }
-    },
-    mounted() {
-        this.loadCategory();
     }
 };
 </script>
