@@ -2229,29 +2229,83 @@ __webpack_require__.r(__webpack_exports__);
 //
 //
 //
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
 
+ // import { objectToFormData } from "object-to-formdata";
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({
   data: function data() {
     return {
-      categoryForm: new vform__WEBPACK_IMPORTED_MODULE_1__.default({
-        name: ""
-      })
+      productForm: new vform__WEBPACK_IMPORTED_MODULE_1__.default({
+        title: "",
+        price: "",
+        image: "",
+        description: ""
+      }),
+      formData: new FormData()
     };
   },
   methods: {
-    createCategory: function createCategory() {
-      var _this = this;
-
-      this.categoryForm.post("/api/category").then(function (_ref) {
-        var data = _ref.data;
-        _this.categoryForm.name = "";
-
-        _this.$toast.success({
-          title: "Succes!",
-          message: "Category created successfully."
-        });
+    createProduct: function createProduct() {
+      this.formData.set("title", this.productForm.title);
+      this.formData.set("price", this.productForm.price);
+      this.formData.set("description", this.productForm.description);
+      axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/product", this.formData).then(function (res) {
+        console.log(res);
+      })["catch"](function (error) {
+        console.log(error);
       });
+    },
+    onImageChange: function onImageChange(e) {
+      var file = e.target.files[0]; // Do some client side validation...
+      // this.formData.image = file;
+
+      this.formData.append("image", file);
+      console.log(file);
     }
   }
 });
@@ -2468,7 +2522,7 @@ __webpack_require__.r(__webpack_exports__);
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
-/* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.esm.js");
+/* harmony import */ var vue__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! vue */ "./node_modules/vue/dist/vue.esm.js");
 /* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! axios */ "./node_modules/axios/index.js");
 /* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(axios__WEBPACK_IMPORTED_MODULE_0__);
 /* harmony import */ var _router_index__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./router/index */ "./resources/js/router/index.js");
@@ -2478,26 +2532,29 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var cxlt_vue2_toastr__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(cxlt_vue2_toastr__WEBPACK_IMPORTED_MODULE_3__);
 /* harmony import */ var cxlt_vue2_toastr_dist_css_cxlt_vue2_toastr_css__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! cxlt-vue2-toastr/dist/css/cxlt-vue2-toastr.css */ "./node_modules/cxlt-vue2-toastr/dist/css/cxlt-vue2-toastr.css");
 /* harmony import */ var cxlt_vue2_toastr_dist_css_cxlt_vue2_toastr_css__WEBPACK_IMPORTED_MODULE_4___default = /*#__PURE__*/__webpack_require__.n(cxlt_vue2_toastr_dist_css_cxlt_vue2_toastr_css__WEBPACK_IMPORTED_MODULE_4__);
+/* harmony import */ var object_to_formdata__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! object-to-formdata */ "./node_modules/object-to-formdata/dist/index.module.js");
+/* harmony import */ var object_to_formdata__WEBPACK_IMPORTED_MODULE_5___default = /*#__PURE__*/__webpack_require__.n(object_to_formdata__WEBPACK_IMPORTED_MODULE_5__);
 
 
 
 
 
 
-vue__WEBPACK_IMPORTED_MODULE_5__.default.use((cxlt_vue2_toastr__WEBPACK_IMPORTED_MODULE_3___default()));
+
+vue__WEBPACK_IMPORTED_MODULE_6__.default.use((cxlt_vue2_toastr__WEBPACK_IMPORTED_MODULE_3___default()));
 var toastrConfigs = {
-  position: 'top full right',
+  position: "top full right",
   showDuration: 1000,
   timeOut: 5000,
   closeButton: true,
-  showMethod: 'fadeIn',
-  hideMethod: 'fadeOut'
+  showMethod: "fadeIn",
+  hideMethod: "fadeOut"
 };
-vue__WEBPACK_IMPORTED_MODULE_5__.default.use((cxlt_vue2_toastr__WEBPACK_IMPORTED_MODULE_3___default()), toastrConfigs); // require('./bootstrap');
+vue__WEBPACK_IMPORTED_MODULE_6__.default.use((cxlt_vue2_toastr__WEBPACK_IMPORTED_MODULE_3___default()), toastrConfigs); // require('./bootstrap');
 
-vue__WEBPACK_IMPORTED_MODULE_5__.default.component('app-header', __webpack_require__(/*! ./components/Header.vue */ "./resources/js/components/Header.vue").default);
-var app = new vue__WEBPACK_IMPORTED_MODULE_5__.default({
-  el: '#app',
+vue__WEBPACK_IMPORTED_MODULE_6__.default.component("app-header", __webpack_require__(/*! ./components/Header.vue */ "./resources/js/components/Header.vue").default);
+var app = new vue__WEBPACK_IMPORTED_MODULE_6__.default({
+  el: "#app",
   router: _router_index__WEBPACK_IMPORTED_MODULE_1__.default
 });
 
@@ -2738,6 +2795,107 @@ module.exports = function (cssWithMappingToString) {
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 // extracted by mini-css-extract-plugin
+
+
+/***/ }),
+
+/***/ "./node_modules/object-to-formdata/dist/index.module.js":
+/*!**************************************************************!*\
+  !*** ./node_modules/object-to-formdata/dist/index.module.js ***!
+  \**************************************************************/
+/***/ ((module) => {
+
+const isUndefined = (value) => value === undefined;
+
+const isNull = (value) => value === null;
+
+const isBoolean = (value) => typeof value === 'boolean';
+
+const isObject = (value) => value === Object(value);
+
+const isArray = (value) => Array.isArray(value);
+
+const isDate = (value) => value instanceof Date;
+
+const isBlob = (value) =>
+  value &&
+  typeof value.size === 'number' &&
+  typeof value.type === 'string' &&
+  typeof value.slice === 'function';
+
+const isFile = (value) =>
+  isBlob(value) &&
+  typeof value.name === 'string' &&
+  (typeof value.lastModifiedDate === 'object' ||
+    typeof value.lastModified === 'number');
+
+const serialize = (obj, cfg, fd, pre) => {
+  cfg = cfg || {};
+
+  cfg.indices = isUndefined(cfg.indices) ? false : cfg.indices;
+
+  cfg.nullsAsUndefineds = isUndefined(cfg.nullsAsUndefineds)
+    ? false
+    : cfg.nullsAsUndefineds;
+
+  cfg.booleansAsIntegers = isUndefined(cfg.booleansAsIntegers)
+    ? false
+    : cfg.booleansAsIntegers;
+
+  cfg.allowEmptyArrays = isUndefined(cfg.allowEmptyArrays)
+    ? false
+    : cfg.allowEmptyArrays;
+
+  fd = fd || new FormData();
+
+  if (isUndefined(obj)) {
+    return fd;
+  } else if (isNull(obj)) {
+    if (!cfg.nullsAsUndefineds) {
+      fd.append(pre, '');
+    }
+  } else if (isBoolean(obj)) {
+    if (cfg.booleansAsIntegers) {
+      fd.append(pre, obj ? 1 : 0);
+    } else {
+      fd.append(pre, obj);
+    }
+  } else if (isArray(obj)) {
+    if (obj.length) {
+      obj.forEach((value, index) => {
+        const key = pre + '[' + (cfg.indices ? index : '') + ']';
+
+        serialize(value, cfg, fd, key);
+      });
+    } else if (cfg.allowEmptyArrays) {
+      fd.append(pre + '[]', '');
+    }
+  } else if (isDate(obj)) {
+    fd.append(pre, obj.toISOString());
+  } else if (isObject(obj) && !isFile(obj) && !isBlob(obj)) {
+    Object.keys(obj).forEach((prop) => {
+      const value = obj[prop];
+
+      if (isArray(value)) {
+        while (prop.length > 2 && prop.lastIndexOf('[]') === prop.length - 2) {
+          prop = prop.substring(0, prop.length - 2);
+        }
+      }
+
+      const key = pre ? pre + '[' + prop + ']' : prop;
+
+      serialize(value, cfg, fd, key);
+    });
+  } else {
+    fd.append(pre, obj);
+  }
+
+  return fd;
+};
+
+module.exports = {
+  serialize,
+};
 
 
 /***/ }),
@@ -4012,7 +4170,7 @@ var render = function() {
           _vm._v("Product Category")
         ]),
         _vm._v(" "),
-        _c("router-link", { attrs: { to: { name: "category-list" } } }, [
+        _c("router-link", { attrs: { to: { name: "product-list" } } }, [
           _vm._v("Product list")
         ])
       ],
@@ -4025,40 +4183,140 @@ var render = function() {
         on: {
           submit: function($event) {
             $event.preventDefault()
-            return _vm.createCategory($event)
+            return _vm.createProduct($event)
           }
         }
       },
       [
         _c("div", { staticClass: "flex items-center mb-4" }, [
-          _c("div", { staticClass: "w-1/4" }, [_vm._v("Category name")]),
+          _c("div", { staticClass: "w-1/4" }, [_vm._v("Product Title")]),
           _vm._v(" "),
           _c("input", {
             directives: [
               {
                 name: "model",
                 rawName: "v-model",
-                value: _vm.categoryForm.name,
-                expression: "categoryForm.name"
+                value: _vm.productForm.title,
+                expression: "productForm.title"
               }
             ],
             staticClass: "w-full border p-2",
-            attrs: { type: "text", name: "name", placeholder: "category name" },
-            domProps: { value: _vm.categoryForm.name },
+            attrs: {
+              type: "text",
+              name: "title",
+              placeholder: "product title"
+            },
+            domProps: { value: _vm.productForm.title },
             on: {
               input: function($event) {
                 if ($event.target.composing) {
                   return
                 }
-                _vm.$set(_vm.categoryForm, "name", $event.target.value)
+                _vm.$set(_vm.productForm, "title", $event.target.value)
               }
             }
           }),
           _vm._v(" "),
-          _vm.categoryForm.errors.has("name")
+          _vm.productForm.errors.has("title")
             ? _c("div", {
                 domProps: {
-                  innerHTML: _vm._s(_vm.categoryForm.errors.get("name"))
+                  innerHTML: _vm._s(_vm.productForm.errors.get("title"))
+                }
+              })
+            : _vm._e()
+        ]),
+        _vm._v(" "),
+        _c("div", { staticClass: "flex items-center mb-4" }, [
+          _c("div", { staticClass: "w-1/4" }, [_vm._v("Product Price")]),
+          _vm._v(" "),
+          _c("input", {
+            directives: [
+              {
+                name: "model",
+                rawName: "v-model",
+                value: _vm.productForm.price,
+                expression: "productForm.price"
+              }
+            ],
+            staticClass: "w-full border p-2",
+            attrs: {
+              type: "text",
+              name: "price",
+              placeholder: "product price"
+            },
+            domProps: { value: _vm.productForm.price },
+            on: {
+              input: function($event) {
+                if ($event.target.composing) {
+                  return
+                }
+                _vm.$set(_vm.productForm, "price", $event.target.value)
+              }
+            }
+          }),
+          _vm._v(" "),
+          _vm.productForm.errors.has("price")
+            ? _c("div", {
+                domProps: {
+                  innerHTML: _vm._s(_vm.productForm.errors.get("price"))
+                }
+              })
+            : _vm._e()
+        ]),
+        _vm._v(" "),
+        _c("div", { staticClass: "flex items-center mb-4" }, [
+          _c("div", { staticClass: "w-1/4" }, [_vm._v("Product Image")]),
+          _vm._v(" "),
+          _c("input", {
+            staticClass: "w-full border p-2",
+            attrs: { type: "file", name: "image" },
+            on: { change: _vm.onImageChange }
+          }),
+          _vm._v(" "),
+          _vm.productForm.errors.has("image")
+            ? _c("div", {
+                domProps: {
+                  innerHTML: _vm._s(_vm.productForm.errors.get("image"))
+                }
+              })
+            : _vm._e()
+        ]),
+        _vm._v(" "),
+        _c("div", { staticClass: "flex items-center mb-4" }, [
+          _c("div", { staticClass: "w-1/4" }, [_vm._v("Product Description")]),
+          _vm._v(" "),
+          _c("textarea", {
+            directives: [
+              {
+                name: "model",
+                rawName: "v-model",
+                value: _vm.productForm.description,
+                expression: "productForm.description"
+              }
+            ],
+            staticClass: "w-full border p-2",
+            attrs: {
+              name: "description",
+              placeholder: "product description",
+              id: "",
+              cols: "30",
+              rows: "10"
+            },
+            domProps: { value: _vm.productForm.description },
+            on: {
+              input: function($event) {
+                if ($event.target.composing) {
+                  return
+                }
+                _vm.$set(_vm.productForm, "description", $event.target.value)
+              }
+            }
+          }),
+          _vm._v(" "),
+          _vm.productForm.errors.has("description")
+            ? _c("div", {
+                domProps: {
+                  innerHTML: _vm._s(_vm.productForm.errors.get("description"))
                 }
               })
             : _vm._e()
